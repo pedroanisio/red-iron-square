@@ -65,7 +65,7 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "D"]
-ignore = ["D105", "D107"]
+extend-ignore = ["D105", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
