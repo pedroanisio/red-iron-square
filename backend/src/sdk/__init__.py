@@ -6,6 +6,8 @@ from collections.abc import Mapping, Sequence
 
 import numpy as np
 
+from src.efe.engine import EFEEngine
+from src.efe.params import EFEParams
 from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DEFAULT_DIMENSIONS, Dimension, DimensionRegistry
 from src.personality.hyperparameters import HyperParameters, ResilienceMode
@@ -29,6 +31,7 @@ from src.sdk.types import (
     SimulationTrace,
     TickRecord,
 )
+from src.shared.protocols import DecisionEngineProtocol
 
 
 class AgentSDK:
@@ -41,6 +44,7 @@ class AgentSDK:
         hyperparameters: HyperParameters | None = None,
         resilience_mode: ResilienceMode = ResilienceMode.ACTIVATION,
         precision_engine: PrecisionEngine | None = None,
+        efe_params: EFEParams | None = None,
     ) -> None:
         self.registry = registry or build_registry()
         self.engine = DecisionEngine(
@@ -49,6 +53,7 @@ class AgentSDK:
             resilience_mode=resilience_mode,
         )
         self._precision_engine = precision_engine
+        self._efe_params = efe_params
 
     @classmethod
     def default(cls) -> AgentSDK:
@@ -59,6 +64,18 @@ class AgentSDK:
     def with_precision(cls, params: PrecisionParams | None = None) -> AgentSDK:
         """Create the default SDK with precision tracking enabled."""
         return cls(precision_engine=PrecisionEngine(params))
+
+    @classmethod
+    def with_efe(
+        cls,
+        efe_params: EFEParams | None = None,
+        precision_params: PrecisionParams | None = None,
+    ) -> AgentSDK:
+        """Create the SDK with EFE decision engine and precision tracking."""
+        return cls(
+            precision_engine=PrecisionEngine(precision_params),
+            efe_params=efe_params or EFEParams(),
+        )
 
     @classmethod
     def from_dimensions(cls, dimensions: Sequence[Dimension]) -> AgentSDK:
@@ -123,6 +140,15 @@ class AgentSDK:
             rng=rng,
         )
 
+    def _resolve_engine(
+        self,
+        personality: PersonalityVector,
+    ) -> DecisionEngineProtocol:
+        """Return EFEEngine if EFE mode is active, else base DecisionEngine."""
+        if self._efe_params is not None:
+            return EFEEngine(self.engine, personality, self._efe_params)
+        return self.engine
+
     def simulator(
         self,
         personality: PersonalityVector,
@@ -132,10 +158,11 @@ class AgentSDK:
         """Create a temporal simulation client."""
         if self._precision_engine and "precision_engine" not in simulator_kwargs:
             simulator_kwargs["precision_engine"] = self._precision_engine
+        engine = self._resolve_engine(personality)
         return TemporalSimulationClient(
             personality,
             actions,
-            self.engine,
+            engine,
             self.registry,
             **simulator_kwargs,
         )
@@ -150,11 +177,12 @@ class AgentSDK:
         """Create a self-aware simulation client."""
         if self._precision_engine and "precision_engine" not in simulator_kwargs:
             simulator_kwargs["precision_engine"] = self._precision_engine
+        engine = self._resolve_engine(personality)
         return SelfModelSimulationClient(
             personality,
             initial_self_model,
             actions,
-            self.engine,
+            engine,
             self.registry,
             **simulator_kwargs,
         )
@@ -164,6 +192,8 @@ __all__ = [
     "AgentSDK",
     "DEFAULT_DIMENSIONS",
     "DecisionResult",
+    "EFEEngine",
+    "EFEParams",
     "PrecisionEngine",
     "PrecisionParams",
     "SelfAwareSimulationTrace",

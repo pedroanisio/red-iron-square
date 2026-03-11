@@ -255,7 +255,7 @@ def test_friendly_error_truncates_long_message() -> None:
 
 def test_friendly_error_passes_through_short_unknown() -> None:
     """Short unknown exceptions are shown as-is."""
-    exc = ValueError("bad value")
+    exc = RuntimeError("bad value")
     result = _friendly_error(exc, "Step failed")
 
     assert result == "Step failed: bad value"
@@ -570,3 +570,18 @@ def test_resume_post_redirects() -> None:
     )
 
     assert response.status_code == 302
+
+
+def test_theme_toggle_present() -> None:
+    """Theme toggle button renders with light/dark CSS variables."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/")
+    html = response.data
+
+    assert b'id="theme-toggle"' in html
+    assert b'data-theme="light"' in html
+    assert b'data-theme="dark"' in html
+    assert b"ris-theme" in html

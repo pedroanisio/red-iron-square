@@ -13,9 +13,12 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+    <script>/* Apply saved theme before paint */
+    (function(){var t=localStorage.getItem('ris-theme');if(!t){t=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);})();
+    </script>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      :root {
+      :root, [data-theme="dark"] {
         --bg: #0a0a0a; --surface: #141414; --raised: #1c1c1c;
         --border: #2a2a2a; --border-active: #444;
         --text: #e0ddd8; --text-2: #a09b96; --text-3: #8a8580;
@@ -28,13 +31,29 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
         --display: 'Archivo Black', Impact, sans-serif;
         --body: 'Instrument Sans', sans-serif;
         --mono: 'DM Mono', monospace;
+        --grid-line: rgba(200,33,10,.03);
+        --topbar-border: #000;
+        --overlay-bg: rgba(0,0,0,.7);
+      }
+      [data-theme="light"] {
+        --bg: #f4f1ec; --surface: #fff; --raised: #f9f7f4;
+        --border: #d6d0c8; --border-active: #b0a898;
+        --text: #1a1a18; --text-2: #4a4640; --text-3: #7a756e;
+        --red: #b01c08; --red-bright: #d42a12; --red-dim: rgba(176,28,8,.08);
+        --cream: #2a2520; --cream-dim: rgba(42,37,32,.05);
+        --iron: #5a6270; --iron-dim: rgba(90,98,112,.08);
+        --amber: #b07a08; --amber-dim: rgba(176,122,8,.08);
+        --green: #1e7040; --green-dim: rgba(30,112,64,.08);
+        --grid-line: rgba(176,28,8,.04);
+        --topbar-border: rgba(0,0,0,.15);
+        --overlay-bg: rgba(0,0,0,.4);
       }
       body {
         font-family: var(--body); background: var(--bg); color: var(--text);
         font-size: 14px; line-height: 1.5;
         background-image:
-          repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(200,33,10,.03) 79px, rgba(200,33,10,.03) 80px),
-          repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(200,33,10,.03) 79px, rgba(200,33,10,.03) 80px);
+          repeating-linear-gradient(90deg, transparent, transparent 79px, var(--grid-line) 79px, var(--grid-line) 80px),
+          repeating-linear-gradient(0deg, transparent, transparent 79px, var(--grid-line) 79px, var(--grid-line) 80px);
       }
 
       /* Progress indicator (HTMX) */
@@ -66,7 +85,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       .topbar {
         display: flex; align-items: center; justify-content: space-between;
         padding: 0 2rem; height: 60px; background: var(--red);
-        border-bottom: 4px solid #000; position: sticky; top: 0; z-index: 100;
+        border-bottom: 4px solid var(--topbar-border); position: sticky; top: 0; z-index: 100;
       }
       .topbar-brand {
         font-family: var(--display); font-size: 18px; letter-spacing: .06em;
@@ -84,6 +103,15 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       .badge::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: currentColor; }
       .badge-ok { background: rgba(255,255,255,.15); color: #fff; }
       .badge-err { background: rgba(0,0,0,.3); color: rgba(255,255,255,.6); }
+
+      /* Theme toggle */
+      .theme-toggle {
+        background: none; border: 1px solid rgba(255,255,255,.25); border-radius: var(--radius);
+        color: #fff; cursor: pointer; padding: 5px 8px; font-size: 14px; line-height: 1;
+        transition: border-color .15s;
+      }
+      .theme-toggle:hover { border-color: rgba(255,255,255,.5); }
+      .theme-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
       /* Toast */
       .toast-wrap {
@@ -360,7 +388,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       /* Confirm dialog */
       .confirm-overlay {
         display: none; position: fixed; inset: 0; z-index: 300;
-        background: rgba(0,0,0,.7); align-items: center; justify-content: center;
+        background: var(--overlay-bg); align-items: center; justify-content: center;
       }
       .confirm-overlay.open { display: flex; }
       .confirm-box {
@@ -408,7 +436,10 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
         <a href="/" style="color:#fff;text-decoration:none;">Red Iron Square</a>
         <a href="/campaigns" style="color:rgba(255,255,255,.7);text-decoration:none;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-left:12px;">Campaigns</a>
       </div>
-      {% block topbar_right %}{% endblock %}
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle theme"><span id="theme-icon">&#9790;</span></button>
+        {% block topbar_right %}{% endblock %}
+      </div>
     </header>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -466,12 +497,12 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
         ta.addEventListener('input', function() {
           sessionStorage.setItem(storageKey, ta.value);
           if (!msg) return;
-          try { JSON.parse(ta.value); ta.classList.remove('field-error'); msg.classList.remove('visible'); }
-          catch (e) { ta.classList.add('field-error'); msg.textContent = e.message; msg.classList.add('visible'); }
+          try { JSON.parse(ta.value); ta.classList.remove('field-error'); ta.removeAttribute('aria-invalid'); msg.classList.remove('visible'); }
+          catch (e) { ta.classList.add('field-error'); ta.setAttribute('aria-invalid', 'true'); msg.textContent = e.message; msg.classList.add('visible'); }
         });
         ta.closest('form').addEventListener('submit', function(e) {
           try { JSON.parse(ta.value); }
-          catch (err) { e.preventDefault(); ta.classList.add('field-error'); if (msg) { msg.textContent = err.message; msg.classList.add('visible'); } }
+          catch (err) { e.preventDefault(); ta.classList.add('field-error'); ta.setAttribute('aria-invalid', 'true'); if (msg) { msg.textContent = err.message; msg.classList.add('visible'); } }
         });
       });
       /* Clear drafts on successful submit (no error toasts) */
@@ -516,6 +547,25 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
           if (sessionStorage.getItem(key) === '1') hd.classList.add('collapsed');
         });
       });
+      /* Theme toggle */
+      (function() {
+        var btn = document.getElementById('theme-toggle');
+        var icon = document.getElementById('theme-icon');
+        if (!btn) return;
+        function currentTheme() {
+          return document.documentElement.getAttribute('data-theme') || 'dark';
+        }
+        function updateIcon() {
+          icon.innerHTML = currentTheme() === 'dark' ? '&#9790;' : '&#9728;';
+        }
+        updateIcon();
+        btn.addEventListener('click', function() {
+          var next = currentTheme() === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', next);
+          localStorage.setItem('ris-theme', next);
+          updateIcon();
+        });
+      })();
     </script>
   </body>
 </html>

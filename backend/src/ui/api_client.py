@@ -152,7 +152,7 @@ class ApiClient:
             headers={"content-type": "application/json"},
         )
         try:
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=30) as response:
                 result: dict[str, Any] = json.loads(response.read().decode())
                 return result
         except urllib.error.HTTPError as exc:

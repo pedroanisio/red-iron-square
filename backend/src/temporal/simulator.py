@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
-from src.personality.decision import DecisionEngine
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.precision.state import PrecisionState, PredictionErrors
 from src.shared.logging import get_logger
+from src.shared.protocols import DecisionEngineProtocol
 from src.temporal.affective_engine import AffectiveEngine
 from src.temporal.emotions import EmotionReading, EmotionThresholds
 from src.temporal.memory import MemoryBank, MemoryEntry
@@ -63,7 +63,7 @@ class TemporalSimulator:
         self,
         personality: PersonalityVector,
         actions: Sequence[Action],
-        engine: DecisionEngine,
+        engine: DecisionEngineProtocol,
         *,
         initial_state: AgentState | None = None,
         state_params: StateTransitionParams = StateTransitionParams(),
@@ -85,6 +85,12 @@ class TemporalSimulator:
         self.rng = rng or np.random.default_rng()
         self._tick_counter = 0
         self._precision_engine = precision_engine
+        self._bind_engine_memory()
+
+    def _bind_engine_memory(self) -> None:
+        """Bind memory bank to engine if it supports it (e.g. EFEEngine)."""
+        if hasattr(self.engine, "bind_memory"):
+            self.engine.bind_memory(self.memory)
 
     def _compute_modulated_activations(self, scenario: Scenario) -> np.ndarray:
         """Compute raw activations gated by energy."""
@@ -92,8 +98,19 @@ class TemporalSimulator:
         energy_factor = 0.5 + 0.5 * self.state.energy
         return raw * energy_factor
 
-    def _compute_effective_temperature(self) -> float:
-        """Mood-modulated temperature: negative mood -> more random."""
+    def _compute_effective_temperature(
+        self,
+        precision: PrecisionState | None = None,
+    ) -> float:
+        """Compute temperature, using precision-derived gamma when available.
+
+        When a ``PrecisionState`` is provided, policy precision gamma
+        (level_1) sets the temperature as ``1/gamma``. Otherwise falls
+        back to the mood-modulated base temperature.
+        """
+        if precision is not None:
+            gamma = precision.level_1
+            return 1.0 / gamma
         return self.temperature * (1.0 + 0.3 * max(0, -self.state.mood))
 
     def _resolve_outcome(
@@ -190,11 +207,21 @@ class TemporalSimulator:
         errors = self._precision_engine.compute_errors(state, self.personality)
         return precision, errors
 
+    @property
+    def _uses_efe(self) -> bool:
+        """Check if the engine supports EFE-based decisions."""
+        return hasattr(self.engine, "bind_memory")
+
     def tick(self, scenario: Scenario, outcome: float | None = None) -> TickResult:
         """Execute one simulation tick."""
         state_before = self.state.snapshot()
         activations = self._compute_modulated_activations(scenario)
-        temperature = self._compute_effective_temperature()
+
+        pre_precision: PrecisionState | None = None
+        if self._uses_efe and self._precision_engine is not None:
+            pre_precision, _ = self._compute_precision(self.state, scenario)
+
+        temperature = self._compute_effective_temperature(pre_precision)
 
         chosen_action, probs = self.engine.decide(
             self.personality,

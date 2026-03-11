@@ -8,7 +8,7 @@ disclaimer: >
 title: "Personality as Precision Landscape: A Hierarchical Self-Evidencing Architecture for Red Iron Square"
 version: "1.0"
 date: "2026-03-11"
-status: "Research architecture proposal with staged migration plan"
+status: "Research architecture proposal with staged migration plan; assessed against codebase on 2026-03-11"
 ---
 
 # Personality as Precision Landscape
@@ -20,6 +20,16 @@ This document proposes a single architectural innovation for Red Iron Square: re
 The proposal includes a dual-regime computational architecture separating fast math from slow generation, a three-phase staged migration plan grounded in existing Red Iron Square code, behavioral falsification criteria, an ablation protocol, inter-level coupling stability analysis, and a concrete C-vector derivation mapping personality to prior preferences.
 
 This is a research architecture proposal, not a sprint-ready implementation spec. Each migration phase is independently valuable and reversible.
+
+### 0.1 Implementation status against the current codebase
+
+This document is now partly implemented and partly still aspirational.
+
+- **Phase A status:** implemented. The codebase has explicit `PrecisionState`, Level-0 allostatic prediction errors, personality-derived set-points, precision snapshots in tick payloads, SDK wiring, persisted run/API coverage, and profile-based exit-criterion tests.
+- **Phase B status:** partially implemented. The codebase contains an `src/efe` package with `EFEEngine`, `CVector`, epistemic-value computation from memory, simulator integration, and dedicated tests, but EFE is not yet the default runtime path and is not consistently used across all public surfaces.
+- **Phase C status:** not implemented. Emotions are still primarily heuristic detections, the LLM is not maintaining a narrative generative model at surprise spikes or phase boundaries, and self-evidencing feedback from Level 2 into Level 1 policy precision does not exist yet.
+
+In practical terms, the current codebase supports **precision as explicit tracked state**, but not yet **precision as the causal organizing principle of action, emotion construction, and narrative identity**.
 
 ---
 
@@ -403,6 +413,8 @@ Each phase is independently valuable and reversible.
 
 ### 7.1 Phase A — Precision as explicit tracked state
 
+**Implementation status:** COMPLETE
+
 **What changes:** Add precision variables alongside the existing activation/utility/Boltzmann pipeline. Precision is computed, tracked, and persisted — but does not yet influence decisions.
 
 **Concrete code changes:**
@@ -425,7 +437,23 @@ Each phase is independently valuable and reversible.
 
 **Exit criterion:** Precision trajectories show expected personality-dependent patterns (high-N → high interoceptive precision, high-E → high policy precision) across a standard test battery of at least 8 personality profiles (each extreme of each trait pair) with 10 seeded runs each.
 
+**Implemented in the current codebase:**
+
+- `src/precision/state.py` defines `PrecisionState`, `PredictionErrors`, and JSON-safe snapshot models.
+- `src/precision/setpoints.py` implements the personality-derived allostatic set-points described in §2.1.
+- `src/precision/engine.py` computes Level-0, Level-1, and Level-2 precision via the softplus parameterization and exposes Level-0 prediction errors.
+- `src/temporal/simulator.py` computes and returns precision and prediction errors on each tick when the precision engine is enabled.
+- `src/self_model/simulator.py` preserves the same precision tracking on the self-aware path.
+- `src/sdk/__init__.py` exposes `AgentSDK.with_precision()`.
+- `src/api/run_client_builder.py` reconstructs persisted runs with the precision-enabled SDK, so run API ticks and trajectories persist precision snapshots.
+- `tests/test_precision.py` covers the precision models, engines, SDK integration, and self-aware integration.
+- `tests/test_precision_profiles.py` exercises the personality-dependent trajectory exit criteria across 8 trait-extreme profiles and 10 seeds each.
+
+**Current interpretation:** Phase A is no longer just proposed. It is the implemented baseline for the current migration path.
+
 ### 7.2 Phase B — Swap utility for lightweight EFE surrogate
+
+**Implementation status:** PARTIALLY IMPLEMENTED
 
 **What changes:** Replace the utility dot-product with an EFE approximation decomposed into epistemic and pragmatic components.
 
@@ -461,7 +489,34 @@ Each phase is independently valuable and reversible.
 - **Differentiation test:** For extreme O/C profiles (O=0.9/C=0.1 vs. O=0.1/C=0.9), action entropy difference ≥ 0.3 nats (high-O more entropic than high-C), measured over 1000 ticks with 10 seeds.
 - Both must pass simultaneously. Equivalence pass + differentiation fail → C-vector recalibration needed. Equivalence fail → EFE surrogate misconfigured.
 
+**Intermediate implementation state in the current codebase:**
+
+- **Implemented core artifacts**
+  - `src/efe/engine.py` defines `EFEEngine`.
+  - `src/efe/c_vector.py` defines the factored 5×5 `CVector`.
+  - `src/efe/epistemic.py` computes epistemic value from per-action outcome variance.
+  - `src/efe/params.py` exposes tunable EFE hyperparameters.
+  - `src/temporal/memory.py` already provides `action_outcome_variance()`, which supports the epistemic approximation.
+- **Implemented runtime wiring**
+  - `AgentSDK.with_efe()` exists.
+  - `AgentSDK.simulator()` and `AgentSDK.self_aware_simulator()` resolve an `EFEEngine` when EFE mode is enabled.
+  - `TemporalSimulator` binds its `MemoryBank` into engines that support `bind_memory()`.
+  - `TemporalSimulator._compute_effective_temperature()` can derive temperature from Level-1 policy precision (`1 / gamma`) when precision is available.
+- **Implemented validation**
+  - `tests/test_efe.py` covers `CVector`, epistemic value, the `EFEEngine`, and SDK integration.
+  - `tests/test_efe_profiles.py` encodes the equivalence and differentiation criteria from this section.
+
+**Still incomplete relative to the Phase B goal:**
+
+- `src/personality/decision.py` remains the default decision path for the general SDK, so EFE is opt-in rather than the new baseline.
+- `AgentSDK.decide()` still uses `DecisionClient(self.engine, ...)` with the base `DecisionEngine`; one-shot decisions do not honor EFE mode yet.
+- Persisted run reconstruction uses precision by default but not EFE by default, so the run API remains primarily on the legacy action-selection path.
+- The document proposes a generalized engine swap across the runtime surface; the current code only applies that swap to simulator construction paths.
+- The C-vector/EFE machinery is present, but the overall migration step is not complete until EFE becomes the canonical action-selection backend for the intended surfaces.
+
 ### 7.3 Phase C — Emotion construction and narrative generative model
+
+**Implementation status:** NOT IMPLEMENTED
 
 Phase C combines three novel subsystems. To manage integration risk, it is split into two sub-phases:
 
@@ -484,6 +539,8 @@ Phase C combines three novel subsystems. To manage integration risk, it is split
 **Phase C2 — Add self-evidencing feedback.** Tests Predictions 3 and 5. Level 2 prediction error feeds into Level 1 policy precision per §5, with stability bounds per §5.1. Gated by the 256-config stability sweep (§6.3).
 
 **What does not change:** `StructuredLLMAdapter` protocol, `AgentRuntime` interface, the principle that LLM outputs are typed, validated, and never mutate state directly.
+
+**Current gap relative to the codebase:** the runtime still uses heuristic emotion detection, and the LLM is only used in explicit API orchestration flows (`assist/step`, `intervention`, analysis-style tasks), not as a bounded deep generative model refreshing narrative state or constructed emotions inside the simulation loop.
 
 ### 7.4 Phase C integration risks
 

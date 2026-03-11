@@ -1,17 +1,23 @@
 """Self-aware simulator: extends TemporalSimulator with self-model hooks."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from src.personality.decision import DecisionEngine
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.self_model.emotions import SelfEmotionDetector, SelfEmotionReading
 from src.self_model.model import SelfModel
 from src.self_model.params import SelfModelParams
 from src.shared.logging import get_logger
+from src.shared.protocols import DecisionEngineProtocol
 from src.temporal.simulator import TemporalSimulator, TickResult
 from src.temporal.state import AgentState
+
+if TYPE_CHECKING:
+    from src.precision.engine import PrecisionEngine
 
 _log = get_logger(module="self_model.simulator")
 
@@ -42,13 +48,14 @@ class SelfAwareSimulator(TemporalSimulator):
         personality: PersonalityVector,
         initial_self_model: np.ndarray,
         actions: Sequence[Action],
-        engine: DecisionEngine,
+        engine: DecisionEngineProtocol,
         *,
         self_model_params: SelfModelParams = SelfModelParams(),
         initial_state: AgentState | None = None,
         memory_size: int = 500,
         temperature: float = 1.0,
         rng: np.random.Generator | None = None,
+        precision_engine: PrecisionEngine | None = None,
     ) -> None:
         super().__init__(
             personality,
@@ -58,6 +65,7 @@ class SelfAwareSimulator(TemporalSimulator):
             memory_size=memory_size,
             temperature=temperature,
             rng=rng,
+            precision_engine=precision_engine,
         )
         self.self_model = SelfModel(
             initial_self_model,
@@ -126,4 +134,6 @@ class SelfAwareSimulator(TemporalSimulator):
             identity_drift=sm_metrics["identity_drift"],
             prediction_error=pred_error,
             predicted_probs=predicted_probs,
+            precision=base.precision,
+            prediction_errors=base.prediction_errors,
         )

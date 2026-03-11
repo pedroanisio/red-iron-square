@@ -6,17 +6,19 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.sdk.mappers import action_list_to_names, probabilities_to_dict, vector_to_dict
 from src.sdk.types import DecisionResult
+from src.shared.protocols import DecisionEngineProtocol
 
 
 class DecisionClient:
     """Task-oriented wrapper around the decision engine."""
 
-    def __init__(self, engine: DecisionEngine, registry: DimensionRegistry) -> None:
+    def __init__(
+        self, engine: DecisionEngineProtocol, registry: DimensionRegistry
+    ) -> None:
         self.engine = engine
         self.registry = registry
 

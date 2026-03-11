@@ -21,7 +21,7 @@ class RunClientBuilder:
     """Reconstruct a simulation client from a persisted run config and tick history."""
 
     def __init__(self, sdk: AgentSDK | None = None) -> None:
-        self._sdk = sdk or AgentSDK.default()
+        self._sdk = sdk or AgentSDK.with_precision()
 
     def build(
         self,

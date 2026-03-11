@@ -101,3 +101,16 @@ class MemoryBank:
         if len(recent) < 2:
             return 0.0
         return float(np.var([m.outcome for m in recent]))
+
+    def action_outcome_variance(
+        self, action_name: str, window: int = 50
+    ) -> float | None:
+        """Variance of recent outcomes for a specific action.
+
+        Returns None when fewer than 2 entries exist for the action.
+        """
+        recent = self.recent(window)
+        outcomes = [m.outcome for m in recent if m.action_name == action_name]
+        if len(outcomes) < 2:
+            return None
+        return float(np.var(outcomes))

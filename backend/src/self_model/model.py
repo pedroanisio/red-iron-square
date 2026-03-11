@@ -5,11 +5,11 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.self_model.params import SelfModelParams
 from src.shared.logging import get_logger
+from src.shared.protocols import DecisionEngineProtocol
 from src.shared.validators import validate_unit_interval
 from src.temporal.state import AgentState
 
@@ -146,7 +146,7 @@ class SelfModel:
         self,
         scenario: Scenario,
         actions: Sequence[Action],
-        engine: DecisionEngine,
+        engine: DecisionEngineProtocol,
         temperature: float = 1.0,
         state: AgentState | None = None,
     ) -> np.ndarray:

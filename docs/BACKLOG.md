@@ -1,9 +1,15 @@
 ---
 disclaimer: "No information in this document should be taken for granted. Any statement not backed by executable code, tests, or a verifiable reference may be incomplete, invalid, or hallucinated."
 last_assessed: "2026-03-11"
+status: "DEPRECATED — all phases complete"
+superseded_by: "personality-as-precision-landscape-1.0.md"
 ---
 
-# Backlog
+# Backlog (DEPRECATED)
+
+> **This backlog is complete and deprecated.** All 11 phases (0–10) are done.
+> The active roadmap is now [Personality as Precision Landscape](personality-as-precision-landscape-1.0.md),
+> which defines Phases A, B, C1, and C2 for the hierarchical active inference migration.
 
 This backlog turns the current architecture direction into an execution sequence for the repository as it exists today:
 
@@ -14,7 +20,7 @@ This backlog turns the current architecture direction into an execution sequence
 - Flask telemetry UI in `backend/src/ui`
 - SQLite persistence in `backend/src/api/run_store.py`
 - Anthropic + OpenAI adapters in `backend/src/llm`
-- 174 tests, 91% coverage
+- 237 tests, 91% coverage
 
 The intended GenAI integration assumption for this backlog is the **Anthropic Python library** as the LLM client/runtime boundary. The simulation engine remains the deterministic source of truth. Anthropic models are used only for:
 
@@ -295,7 +301,7 @@ Flask UI implemented in `src/ui/` (app.py 273 LOC, helpers.py 97 LOC, api_client
 
 Tests: `test_ui.py` (21 tests) covers rendering, run view, run browser, accessibility landmarks, ARIA tabs, JSON validation, sparkline with phase markers, identity drift metrics, action toolbar, replay/branch/export routes, compare view, campaign pages, HTMX boost, typed models.
 
-## Phase 10: Full Orchestrator — NOT STARTED
+## Phase 10: Full Orchestrator — DONE
 
 ### Goal
 
@@ -380,6 +386,23 @@ Add orchestrator controls to Flask UI:
 - orchestrator respects campaign goals and intervention constraints
 - each cycle produces exactly one persisted decision record
 
+### Status
+
+All tasks complete. Full orchestrator implemented in `src/orchestrator/` package:
+
+- `models.py` — OrchestrationContext, OrchestratorDecision, AgentResult dataclasses
+- `store.py` — OrchestratorStore with `orchestrator_decision` SQLite table persistence
+- `agents.py` — AgentRuntimeProtocol + 4 agent wrappers (scenario, observer, analyst, intervention) in AGENT_REGISTRY
+- `controller.py` — MetaController with decide-act-observe loop, auto-run, resume, checkpoint gating
+- `schemas.py` — OrchestrateCycleRequest, ResumeRequest Pydantic models
+- `router.py` — 3 API endpoints (orchestrate, orchestrator-log, resume)
+
+UI integration: orchestrator controls card (auto-run + resume), orchestrator decision log tab, api_client methods.
+
+Human checkpoint support: pause/resume via `simulation_run.status`, configurable triggers, campaign goal updates on resume.
+
+Tests: `test_orchestrator_store.py` (4), `test_orchestrator_agents.py` (6), `test_meta_controller.py` (6), `test_orchestrator_api.py` (7), `test_ui.py` orchestrator tests (4) — 27 new tests.
+
 ## Cross-Cutting Work
 
 ### Testing — DONE
@@ -391,7 +414,7 @@ Add orchestrator controls to Flask UI:
 - API contract tests: test_api_basic.py, test_api_runs.py, test_api_list_runs.py, test_api_agents.py
 - UI integration tests: test_ui.py with FakeUiClient (rendering, routes, accessibility, HTMX)
 - e2e test with real Anthropic: test_e2e.py (requires credentials)
-- 174 tests total, 91% coverage
+- 237 tests total, 91% coverage
 
 ### Observability — DONE
 
@@ -435,15 +458,8 @@ Add orchestrator controls to Flask UI:
 | 7 — Analysis And Intervention Agents | DONE |
 | 8 — Campaign Orchestration | DONE |
 | 9 — Thin Telemetry Frontend | DONE |
-| 10 — Full Orchestrator | NOT STARTED |
+| 10 — Full Orchestrator | DONE |
 
-## Recommended Next Priorities
+## Next
 
-1. **Phase 10**: Full orchestrator with MetaController, agent registry, human checkpoints, and pause/resume — the only remaining phase.
-
-## Explicit Non-Goals For Now
-
-- no frontend-local simulation engine
-- no direct LLM ownership of memory or state
-- no peer-to-peer freeform agent mesh before persistence exists
-- no hidden state transitions outside the tick pipeline
+See [Personality as Precision Landscape](personality-as-precision-landscape-1.0.md) for the active roadmap.

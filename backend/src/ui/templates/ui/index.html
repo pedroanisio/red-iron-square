@@ -73,7 +73,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     {%- for phase in phases %}
       {%- set px = (phase.start_tick / (tick_count - 1)) * (w - 2 * pad) + pad if tick_count > 1 else w / 2 %}
       <line x1="{{ px }}" y1="5" x2="{{ px }}" y2="{{ h - 5 }}"
-            stroke="var(--border-2)" stroke-width="1" stroke-dasharray="3,3"
+            stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"
             class="phase-marker"/>
       <text x="{{ px + 3 }}" y="12" fill="var(--text-3)"
             font-size="8" font-family="'DM Mono', monospace"
@@ -94,10 +94,8 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 {% set scn_defaults = {"O": 0.8, "N": 0.3} %}
 
 {% block topbar_right %}
-<div style="display:flex;align-items:center;gap:12px;">
   {% if run_id %}<span class="run-id" title="{{ run_id }}">{{ run_id }}</span>{% endif %}
   <span class="badge {{ 'badge-ok' if api_ok else 'badge-err' }}">{{ "Connected" if api_ok else "Unavailable" }}</span>
-</div>
 {% endblock %}
 
 {% block content %}
@@ -397,29 +395,30 @@ reduce randomness</textarea>
 
     {# Orchestrator Controls #}
     <div class="card">
-      <h3 style="font-family:'Archivo Black',sans-serif;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:.75rem;">
-        Orchestrator
-      </h3>
-      {% if run.status == 'paused' %}
-      <form method="post" action="/runs/{{ run_id }}/resume" style="margin-bottom:.75rem;">
-        <label style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;">Goals (optional)</label>
-        <textarea name="goals" rows="2" style="width:100%;padding:.4rem;margin:.25rem 0 .5rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;resize:vertical;"></textarea>
-        <button type="submit" class="btn" style="width:100%;background:var(--success);">Resume Run</button>
-      </form>
-      {% else %}
-      <form method="post" action="/runs/{{ run_id }}/orchestrate">
-        <div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
-          <div style="flex:1;">
-            <label for="orch-cycles" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;">Cycles</label>
-            <input type="number" id="orch-cycles" name="cycles" value="1" min="1" max="50"
-                   style="width:100%;padding:.4rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;">
+      <div class="card-hd"><span class="card-title">Orchestrator</span></div>
+      <div class="card-bd">
+        {% if run.status == 'paused' %}
+        <form method="post" action="/runs/{{ run_id }}/resume">
+          <div class="field">
+            <label for="orch-goals-resume">Goals (optional)</label>
+            <textarea id="orch-goals-resume" name="goals" rows="2"></textarea>
           </div>
-        </div>
-        <label style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;">Goals (optional)</label>
-        <textarea name="goals" rows="2" style="width:100%;padding:.4rem;margin:.25rem 0 .5rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;resize:vertical;"></textarea>
-        <button type="submit" class="btn" style="width:100%;">Run Orchestrator</button>
-      </form>
-      {% endif %}
+          <button type="submit" class="btn btn-primary">Resume Run</button>
+        </form>
+        {% else %}
+        <form method="post" action="/runs/{{ run_id }}/orchestrate">
+          <div class="field">
+            <label for="orch-cycles">Cycles</label>
+            <input type="number" id="orch-cycles" name="cycles" value="1" min="1" max="50">
+          </div>
+          <div class="field">
+            <label for="orch-goals">Goals (optional)</label>
+            <textarea id="orch-goals" name="goals" rows="2"></textarea>
+          </div>
+          <button type="submit" class="btn btn-secondary">Run Orchestrator</button>
+        </form>
+        {% endif %}
+      </div>
     </div>
 
     {% if trajectory and trajectory.ticks | length >= 2 %}
@@ -570,7 +569,7 @@ reduce randomness</textarea>
       <div class="tab-panel" role="tabpanel" aria-labelledby="tab-orch" id="panel-orch" hidden>
         {% for d in orchestrator_log %}
         <div style="padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.8rem;">
-          <span style="font-family:'DM Mono',monospace;color:var(--mono);">Cycle {{ d.cycle }}</span>
+          <span style="font-family:'DM Mono',monospace;color:var(--text-2);">Cycle {{ d.cycle }}</span>
           <span style="color:var(--text-3);margin-left:.5rem;">{{ d.action_type }}</span>
           {% if d.rationale %}<p style="color:var(--text-2);font-size:.75rem;margin:.25rem 0 0;">{{ d.rationale }}</p>{% endif %}
         </div>

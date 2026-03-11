@@ -5,11 +5,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.sdk.mappers import tick_result_to_payload
 from src.sdk.types import SimulationTrace, TickRecord
+from src.shared.protocols import DecisionEngineProtocol
 from src.temporal.simulator import TemporalSimulator
 
 
@@ -20,7 +20,7 @@ class TemporalSimulationClient:
         self,
         personality: PersonalityVector,
         actions: Sequence[Action],
-        engine: DecisionEngine,
+        engine: DecisionEngineProtocol,
         registry: DimensionRegistry,
         **simulator_kwargs: Any,
     ) -> None:

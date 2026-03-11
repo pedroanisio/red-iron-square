@@ -32,6 +32,8 @@ _ERROR_MAP: dict[type, str] = {
     ConnectionError: "Cannot reach the API server. Is it running?",
     urllib.error.URLError: "Cannot reach the API server. Is it running?",
     TimeoutError: "The API request timed out. Try again or check the server.",
+    ValueError: "Invalid input — please check the values you entered.",
+    KeyError: "Unexpected response from the API — a required field was missing.",
 }
 
 

@@ -64,10 +64,14 @@ def test_run_lifecycle() -> None:
     assert tick_response.status_code == fastapi.status.HTTP_200_OK
     assert tick_payload["tick"] == 0
     assert "psi_hat" in tick_payload
+    assert "precision" in tick_payload
+    assert "prediction_errors" in tick_payload
 
     run_after_tick = client.get(f"/runs/{run_id}").json()["data"]
     assert run_after_tick["tick_count"] == 1
     assert run_after_tick["latest_tick"]["tick"] == 0
+    assert "precision" in run_after_tick["latest_tick"]
+    assert "prediction_errors" in run_after_tick["latest_tick"]
 
     phase_response = client.post(
         f"/runs/{run_id}/phases",
@@ -83,6 +87,8 @@ def test_run_lifecycle() -> None:
     assert trajectory["tick_count"] == 1
     assert len(trajectory["ticks"]) == 1
     assert trajectory["phases"][0]["label"] == "probe"
+    assert "precision" in trajectory["ticks"][0]
+    assert "prediction_errors" in trajectory["ticks"][0]
 
 
 def test_replay_and_branch() -> None:

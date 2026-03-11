@@ -296,3 +296,16 @@ class TestPrecisionIntegration:
     def test_sdk_with_precision_factory(self) -> None:
         sdk = AgentSDK.with_precision()
         assert sdk._precision_engine is not None
+
+    def test_self_aware_tick_with_precision_engine_has_values(self) -> None:
+        sim = self.sdk_prec.self_aware_simulator(
+            self.personality,
+            self.sdk_prec.initial_self_model({k: 0.5 for k in "OCEANRIT"}),
+            self.actions,
+        )
+        rec = sim.tick(self.scenario, outcome=0.5)
+        assert rec.precision is not None
+        assert rec.prediction_errors is not None
+        assert "level_0" in rec.precision
+        assert "level_1" in rec.precision
+        assert "level_2" in rec.precision

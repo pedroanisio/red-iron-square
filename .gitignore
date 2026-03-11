@@ -5,3 +5,5 @@ backend/.coverage
 *.sqlite3
 .env
 backend/.mypy_cache/
+node_modules/
+test-results/

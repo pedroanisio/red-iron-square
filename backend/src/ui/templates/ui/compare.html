@@ -30,7 +30,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     <div>
       {% if left_run %}
       <div class="card">
-        <h3 style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--mono);margin-bottom:.5rem;padding:14px 18px;background:var(--raised);border-bottom:1px solid var(--border);">{{ left_id[:16] }}</h3>
+        <h3 style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--text-2);margin-bottom:.5rem;padding:14px 18px;background:var(--raised);border-bottom:1px solid var(--border);">{{ left_id[:16] }}</h3>
         <div class="card-bd">
           <p style="font-size:.75rem;color:var(--text-3);">{{ left_run.mode | replace('_',' ') | title }} &middot; {{ left_run.tick_count }} steps &middot; {{ left_run.status }}</p>
           {% if left_traj and left_traj.ticks %}
@@ -61,7 +61,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     <div>
       {% if right_run %}
       <div class="card">
-        <h3 style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--mono);margin-bottom:.5rem;padding:14px 18px;background:var(--raised);border-bottom:1px solid var(--border);">{{ right_id[:16] }}</h3>
+        <h3 style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--text-2);margin-bottom:.5rem;padding:14px 18px;background:var(--raised);border-bottom:1px solid var(--border);">{{ right_id[:16] }}</h3>
         <div class="card-bd">
           <p style="font-size:.75rem;color:var(--text-3);">{{ right_run.mode | replace('_',' ') | title }} &middot; {{ right_run.tick_count }} steps &middot; {{ right_run.status }}</p>
           {% if right_traj and right_traj.ticks %}

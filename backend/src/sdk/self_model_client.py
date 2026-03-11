@@ -7,12 +7,12 @@ from typing import Any
 
 import numpy as np
 
-from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.sdk.mappers import self_aware_tick_result_to_payload
 from src.sdk.types import SelfAwareSimulationTrace, SelfAwareTickRecord
 from src.self_model.simulator import SelfAwareSimulator
+from src.shared.protocols import DecisionEngineProtocol
 
 
 class SelfModelSimulationClient:
@@ -23,7 +23,7 @@ class SelfModelSimulationClient:
         personality: PersonalityVector,
         initial_self_model: np.ndarray,
         actions: Sequence[Action],
-        engine: DecisionEngine,
+        engine: DecisionEngineProtocol,
         registry: DimensionRegistry,
         **simulator_kwargs: Any,
     ) -> None:
