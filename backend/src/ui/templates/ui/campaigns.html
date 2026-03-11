@@ -1,0 +1,109 @@
+<!--
+DISCLAIMER: No information within should be taken for granted.
+Any statement or premise not backed by a real logical definition
+or verifiable reference may be invalid, erroneous, or a hallucination.
+-->
+{% extends "ui/layout.html" %}
+{% block content %}
+<main role="main" id="main-content">
+  <h2 style="font-family:'Archivo Black',sans-serif;font-size:1.3rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text);margin-bottom:1.5rem;">
+    Campaigns
+  </h2>
+
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:2rem;">
+    {# Sidebar: campaign list + create form #}
+    <aside role="complementary">
+      <div class="card">
+        <h3 style="font-family:'Archivo Black',sans-serif;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:.75rem;padding:.75rem;">
+          All Campaigns
+        </h3>
+        {% if campaigns %}
+        <ul style="list-style:none;padding:0 .75rem .75rem;margin:0;">
+          {% for c in campaigns %}
+          <li style="margin-bottom:.5rem;">
+            <a href="/campaigns?campaign_id={{ c.campaign_id }}"
+               style="display:block;padding:.5rem;background:var(--surface);border:1px solid var(--border);color:var(--mono);font-family:'DM Mono',monospace;font-size:.8rem;text-decoration:none;{% if c.campaign_id == campaign_id %}border-color:var(--red);{% endif %}"
+               {% if c.campaign_id == campaign_id %}aria-current="page"{% endif %}>
+              <strong>{{ c.name }}</strong>
+              <span style="color:var(--text-3);font-size:.7rem;display:block;">{{ c.status }} · {{ c.campaign_id[:12] }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color:var(--text-3);font-size:.8rem;padding:0 .75rem .75rem;">No campaigns yet.</p>
+        {% endif %}
+      </div>
+
+      <div class="card" style="margin-top:1rem;">
+        <h3 style="font-family:'Archivo Black',sans-serif;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:.75rem;padding:.75rem;">
+          New Campaign
+        </h3>
+        <form method="post" action="/campaigns/create" style="padding:0 .75rem .75rem;">
+          <label for="camp-name" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Name</label>
+          <input type="text" id="camp-name" name="name" required
+                 style="width:100%;padding:.4rem;margin-bottom:.75rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:.8rem;">
+          <label for="camp-goals" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Goals (one per line)</label>
+          <textarea id="camp-goals" name="goals" rows="3"
+                    style="width:100%;padding:.4rem;margin-bottom:.75rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;resize:vertical;"></textarea>
+          <label for="camp-config" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Config Template (JSON)</label>
+          <textarea id="camp-config" name="config_json" rows="4" data-validate-json
+                    style="width:100%;padding:.4rem;margin-bottom:.75rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;resize:vertical;">{}</textarea>
+          <button type="submit" class="btn" style="width:100%;">Create Campaign</button>
+        </form>
+      </div>
+    </aside>
+
+    {# Main: campaign detail #}
+    <div>
+      {% if campaign %}
+      <div class="card">
+        <div class="card-bd">
+          <h3 style="font-family:'Archivo Black',sans-serif;font-size:1rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text);margin-bottom:.5rem;">
+            {{ campaign.name }}
+          </h3>
+          <p style="font-size:.8rem;color:var(--text-3);margin-bottom:1rem;">
+            {{ campaign.status | title }} · {{ campaign.run_count }} runs · {{ campaign.total_ticks }} total ticks
+          </p>
+          {% if campaign.goals %}
+          <div style="margin-bottom:1rem;">
+            <span style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Goals</span>
+            <ul style="margin:.25rem 0 0 1rem;padding:0;color:var(--text-2);font-size:.8rem;">
+              {% for g in campaign.goals %}<li>{{ g }}</li>{% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          {% if campaign.run_summaries %}
+          <table style="width:100%;font-size:.8rem;border-collapse:collapse;margin-top:1rem;">
+            <thead><tr style="color:var(--text-3);text-align:left;border-bottom:1px solid var(--border);">
+              <th style="padding:.25rem .5rem;">Run ID</th>
+              <th style="padding:.25rem .5rem;">Mode</th>
+              <th style="padding:.25rem .5rem;">Steps</th>
+              <th style="padding:.25rem .5rem;">Status</th>
+            </tr></thead>
+            <tbody>
+            {% for r in campaign.run_summaries %}
+            <tr style="border-bottom:1px solid var(--border);color:var(--text-2);">
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">
+                <a href="/?run_id={{ r.run_id }}" style="color:var(--mono);text-decoration:none;">{{ r.run_id[:16] }}</a>
+              </td>
+              <td style="padding:.25rem .5rem;">{{ r.mode | replace('_',' ') | title }}</td>
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ r.tick_count }}</td>
+              <td style="padding:.25rem .5rem;">{{ r.status }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </div>
+      {% elif campaign_id %}
+      <div class="card"><div class="card-bd" style="color:var(--text-3);">Campaign not found.</div></div>
+      {% else %}
+      <div class="card"><div class="card-bd" style="color:var(--text-3);">Select a campaign or create a new one.</div></div>
+      {% endif %}
+    </div>
+  </div>
+</main>
+{% endblock %}

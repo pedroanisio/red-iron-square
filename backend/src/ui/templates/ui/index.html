@@ -202,6 +202,52 @@ reduce randomness</textarea>
 
   <!-- ── Main panel ── -->
   <main id="main-content" style="display:flex;flex-direction:column;gap:1.5rem;" role="main">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">How This Dashboard Works</span></div>
+      <div class="card-bd">
+        <div class="intro-grid">
+          <div class="intro-lead">
+            <h2 class="intro-title">Start here if this is your first simulation.</h2>
+            <p class="intro-copy">
+              This interface lets you watch how a simulated agent reacts to situations over time.
+              You do not need to understand the model first. Start one run, add a few steps, then
+              use the summaries and charts to understand what changed.
+            </p>
+          </div>
+          <div class="intro-steps" aria-label="Beginner workflow">
+            <div class="intro-step">
+              <div class="intro-step-num">1</div>
+              <div>
+                <div class="intro-step-title">Create a run</div>
+                <div class="intro-step-copy">Use <strong>Start Simulation</strong> to load a personality profile, available actions, and the initial settings.</div>
+              </div>
+            </div>
+            <div class="intro-step">
+              <div class="intro-step-num">2</div>
+              <div>
+                <div class="intro-step-title">Choose your exploration mode</div>
+                <div class="intro-step-copy">Use <strong>Manual Step</strong> for direct control, or <strong>AI-Assisted Step</strong> if you want the system to propose the next situation.</div>
+              </div>
+            </div>
+            <div class="intro-step">
+              <div class="intro-step-num">3</div>
+              <div>
+                <div class="intro-step-title">Read the trajectory</div>
+                <div class="intro-step-copy">Track mood, energy, frustration, actions, and emotions to see whether the agent is becoming stable, reactive, or exploratory.</div>
+              </div>
+            </div>
+            <div class="intro-step">
+              <div class="intro-step-num">4</div>
+              <div>
+                <div class="intro-step-title">Ask for intervention later</div>
+                <div class="intro-step-copy">Use <strong>Intervention</strong> after a few steps when you want the AI to recommend how to steer the run.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     {% if not run %}
     <div class="card">
       <div class="card-bd" style="padding:3rem 2rem;text-align:center;">

@@ -13,7 +13,8 @@ import pytest
 
 pytest.importorskip("flask")
 
-from src.ui.app import _friendly_error, create_ui_app
+from src.ui.app import create_ui_app
+from src.ui.helpers import _friendly_error
 from src.ui.models import (
     BranchResult,
     ReplayResult,
@@ -165,6 +166,53 @@ class FakeUiClient:
             ),
         )
 
+    def list_campaigns(self) -> list[dict[str, object]]:
+        """Return sample campaign list."""
+        return [
+            {
+                "campaign_id": "camp-1",
+                "name": "Test Campaign",
+                "status": "active",
+                "goals": ["explore"],
+                "config_template": {},
+                "created_at": "now",
+                "updated_at": "now",
+            },
+        ]
+
+    def create_campaign(self, payload: dict[str, object]) -> dict[str, object]:
+        """Return a stub create-campaign result."""
+        return {"campaign_id": "camp-1"}
+
+    def get_campaign(self, campaign_id: str) -> dict[str, object]:
+        """Return a sample campaign."""
+        return {
+            "campaign_id": campaign_id,
+            "name": "Test",
+            "status": "active",
+            "goals": ["explore"],
+            "config_template": {},
+            "runs": [],
+            "created_at": "now",
+            "updated_at": "now",
+        }
+
+    def get_campaign_summary(self, campaign_id: str) -> dict[str, object]:
+        """Return a sample campaign summary."""
+        return {
+            "campaign_id": campaign_id,
+            "name": "Test",
+            "status": "active",
+            "goals": ["explore"],
+            "config_template": {},
+            "runs": [],
+            "run_summaries": [],
+            "total_ticks": 5,
+            "run_count": 1,
+            "created_at": "now",
+            "updated_at": "now",
+        }
+
 
 def test_friendly_error_maps_json_error() -> None:
     """Known exception types produce user-friendly messages."""
@@ -203,6 +251,8 @@ def test_index_renders() -> None:
 
     assert response.status_code == 200
     assert b"Red Iron Square" in response.data
+    assert b"How This Dashboard Works" in response.data
+    assert b"Start here if this is your first simulation." in response.data
 
 
 def test_index_loads_run_view() -> None:
@@ -410,6 +460,31 @@ def test_compare_route_renders_two_runs() -> None:
     assert b"run-123" in response.data
     assert b"run-456" in response.data
     assert b"Compare" in response.data
+
+
+def test_campaigns_page_renders() -> None:
+    """Campaign page shows campaign list."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/campaigns")
+
+    assert response.status_code == 200
+    assert b"Campaigns" in response.data
+    assert b"camp-1" in response.data
+
+
+def test_campaign_detail_renders() -> None:
+    """Campaign detail shows summary."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/campaigns?campaign_id=camp-1")
+
+    assert response.status_code == 200
+    assert b"camp-1" in response.data
 
 
 def test_ui_models_are_importable() -> None:

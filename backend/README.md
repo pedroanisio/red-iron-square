@@ -12,6 +12,7 @@ The backend now ships with:
 - a stable SDK facade via `src.sdk.AgentSDK`
 - a packaged CLI via `red-iron-square`
 - a thin FastAPI transport under `src.api`
+- campaign orchestration endpoints under `src.api.campaign_*`
 - a Flask + Jinja2 UI under `src.ui`
 - runnable JSON examples under [backend/examples](/home/admin/spikes/red-iron-square/backend/examples)
 
@@ -183,6 +184,13 @@ Available endpoints:
 - `POST /runs/{run_id}/branches`
 - `POST /runs/{run_id}/assist/step`
 - `POST /runs/{run_id}/intervention`
+- `POST /campaigns`
+- `GET /campaigns`
+- `GET /campaigns/{campaign_id}`
+- `GET /campaigns/{campaign_id}/summary`
+- `POST /campaigns/{campaign_id}/branch`
+- `POST /campaigns/{campaign_id}/rules`
+- `POST /campaigns/{campaign_id}/checkpoint`
 
 Example health check:
 
@@ -221,6 +229,46 @@ curl -X POST http://127.0.0.1:8000/runs \
   }'
 ```
 
+Example campaign creation:
+
+```bash
+curl -X POST http://127.0.0.1:8000/campaigns \
+  -H 'content-type: application/json' \
+  -d '{
+    "name": "baseline research",
+    "goals": ["explore stable trajectories", "compare branches"],
+    "config_template": {
+      "personality": {"O":0.8,"C":0.5,"E":0.3,"A":0.7,"N":0.4,"R":0.9,"I":0.6,"T":0.2},
+      "actions": [
+        {"name":"bold","modifiers":{"O":1.0,"R":0.8,"N":-0.3}},
+        {"name":"safe","modifiers":{"C":0.9,"T":0.8}}
+      ],
+      "temperature": 1.0,
+      "seed": 42
+    }
+  }'
+```
+
+## Campaign API
+
+Campaign orchestration lives in
+[backend/src/api/campaign_router.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_router.py),
+[backend/src/api/campaign_service.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_service.py),
+and
+[backend/src/api/campaign_store.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_store.py).
+
+It currently provides:
+- campaign creation plus automatic primary run creation
+- campaign listing and detail retrieval
+- campaign summary with run-count and total-tick aggregation
+- branching an existing run within a campaign
+- checkpoint rule persistence for `every_n_ticks`, `threshold`, and `manual`
+- manual checkpoint evaluation via `POST /campaigns/{campaign_id}/checkpoint`
+
+Current limitations:
+- checkpoint evaluation currently returns fired rules; it does not yet persist analysis reports
+- no dedicated campaign UI workflow is documented yet in the Flask frontend
+
 ## Flask UI
 
 The Flask UI lives under [backend/src/ui](/home/admin/spikes/red-iron-square/backend/src/ui). It is a thin client over the FastAPI service and does not embed simulator logic.
@@ -237,4 +285,4 @@ It provides:
 
 The UI uses Jinja2 templates styled with Carbon classes and expects the API base URL from `RED_IRON_SQUARE_API_URL` if you do not want the default `http://127.0.0.1:8000`.
 
-The current backend test status is `117 passed` under `uv run pytest -q`.
+The current backend test status is `144 passed` under `uv run pytest -q`.

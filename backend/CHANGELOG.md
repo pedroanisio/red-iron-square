@@ -4,6 +4,30 @@ disclaimer: "No information in this document should be taken for granted. Any st
 
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Campaign orchestration backend in
+  [backend/src/api/campaign_router.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_router.py),
+  [backend/src/api/campaign_service.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_service.py),
+  [backend/src/api/campaign_store.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_store.py),
+  [backend/src/api/campaign_models.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_models.py),
+  and
+  [backend/src/api/campaign_schemas.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_schemas.py).
+- New FastAPI endpoints for campaign creation, listing, detail, summary, branching, checkpoint-rule creation, and manual checkpoint evaluation.
+- SQLite persistence for `campaign`, `campaign_run`, and `checkpoint_rule`.
+- Campaign API, service, and store tests in
+  [backend/tests/test_campaign_api.py](/home/admin/spikes/red-iron-square/backend/tests/test_campaign_api.py),
+  [backend/tests/test_campaign_service.py](/home/admin/spikes/red-iron-square/backend/tests/test_campaign_service.py),
+  and
+  [backend/tests/test_campaign_store.py](/home/admin/spikes/red-iron-square/backend/tests/test_campaign_store.py).
+
+### Changed
+
+- The FastAPI app factory now wires both run and campaign routers.
+- Backend verification baseline has increased to `144 passed` under `uv run pytest -q`.
+
 ## 0.1.0
 
 Initial backend spike promoted into a packaged SDK-first backend surface.

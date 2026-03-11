@@ -90,6 +90,28 @@ class ApiClient:
         ]
         return data
 
+    def list_campaigns(self) -> list[dict[str, Any]]:
+        """Fetch all campaigns."""
+        data: list[dict[str, Any]] = self._request("GET", "/campaigns")["data"]
+        return data
+
+    def create_campaign(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a campaign."""
+        data: dict[str, Any] = self._request("POST", "/campaigns", payload)["data"]
+        return data
+
+    def get_campaign(self, campaign_id: str) -> dict[str, Any]:
+        """Fetch one campaign with runs."""
+        data: dict[str, Any] = self._request("GET", f"/campaigns/{campaign_id}")["data"]
+        return data
+
+    def get_campaign_summary(self, campaign_id: str) -> dict[str, Any]:
+        """Fetch campaign summary with aggregated stats."""
+        data: dict[str, Any] = self._request(
+            "GET", f"/campaigns/{campaign_id}/summary"
+        )["data"]
+        return data
+
     def _request(
         self,
         method: str,

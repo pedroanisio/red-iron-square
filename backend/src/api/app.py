@@ -10,6 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from src.api.campaign_router import create_campaign_router
+from src.api.campaign_service import CampaignService
+from src.api.campaign_store import CampaignStore
 from src.api.run_router import create_run_router
 from src.api.run_service import RunService
 from src.api.run_store import RunStore
@@ -33,6 +36,11 @@ def create_app(
         summary="HTTP transport for the personality-driven simulation SDK.",
     )
     run_service = RunService(RunStore(resolved_db_path))
+    campaign_service = CampaignService(
+        CampaignStore(resolved_db_path),
+        run_service,
+    )
     app.include_router(create_simulation_router())
     app.include_router(create_run_router(run_service, agent_runtime))
+    app.include_router(create_campaign_router(campaign_service))
     return app

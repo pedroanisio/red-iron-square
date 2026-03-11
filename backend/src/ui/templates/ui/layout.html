@@ -234,6 +234,42 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
         letter-spacing: -.01em; color: var(--cream);
       }
 
+      .intro-grid {
+        display: grid; grid-template-columns: minmax(240px, 1.1fr) minmax(320px, 1.6fr);
+        gap: 18px; align-items: start;
+      }
+      .intro-lead {
+        background: linear-gradient(180deg, var(--raised), rgba(200,33,10,.08));
+        border: 1px solid var(--border); border-left: 4px solid var(--red);
+        padding: 18px;
+      }
+      .intro-title {
+        font-family: var(--display); font-size: 18px; letter-spacing: .03em;
+        text-transform: uppercase; color: var(--cream); margin-bottom: 10px;
+      }
+      .intro-copy {
+        color: var(--text-2); line-height: 1.7; max-width: 42ch;
+      }
+      .intro-steps {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+      }
+      .intro-step {
+        display: flex; gap: 12px; background: var(--bg);
+        border: 1px solid var(--border); padding: 14px;
+      }
+      .intro-step-num {
+        width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+        background: var(--red); color: #fff; font-family: var(--display);
+        font-size: 12px; flex-shrink: 0;
+      }
+      .intro-step-title {
+        font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+        letter-spacing: .08em; color: var(--cream); margin-bottom: 6px;
+      }
+      .intro-step-copy {
+        color: var(--text-2); font-size: 13px; line-height: 1.55;
+      }
+
       /* Event list */
       .ev { padding: 16px 0; border-bottom: 1px solid var(--border); }
       .ev:last-child { border-bottom: none; }
@@ -299,6 +335,8 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       @media (max-width: 900px) {
         .grid-main { grid-template-columns: 1fr; }
         .grid-main > :last-child { order: -1; }
+        .intro-grid { grid-template-columns: 1fr; }
+        .intro-steps { grid-template-columns: 1fr; }
       }
 
       /* Entrance animations */
@@ -318,7 +356,11 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     <div class="htmx-indicator" id="progress-bar"></div>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="topbar" role="banner">
-      <div class="topbar-brand"><span class="mark" aria-hidden="true"></span> Red Iron Square</div>
+      <div class="topbar-brand">
+        <span class="mark" aria-hidden="true"></span>
+        <a href="/" style="color:#fff;text-decoration:none;">Red Iron Square</a>
+        <a href="/campaigns" style="color:rgba(255,255,255,.7);text-decoration:none;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-left:12px;">Campaigns</a>
+      </div>
       {% block topbar_right %}{% endblock %}
     </header>
     {% with messages = get_flashed_messages(with_categories=true) %}
