@@ -18,7 +18,7 @@ repos:
     hooks:
       - id: mypy
         name: "mypy strict"
-        entry: bash -c 'cd backend && .venv/bin/python -m mypy --no-incremental src/'
+        entry: bash scripts/run_mypy_hook.sh
         language: system
         types: [python]
         files: ^backend/src/
