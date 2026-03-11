@@ -9,8 +9,7 @@ from src.temporal.state import AgentState
 
 
 class MemoryEntry(BaseModel):
-    """
-    A single episodic memory: what happened at tick t.
+    """A single episodic memory: what happened at tick t.
 
     counterfactual: best unchosen utility minus chosen utility.
     valence: subjective emotional valence in [-1, 1].
@@ -28,8 +27,7 @@ class MemoryEntry(BaseModel):
 
 
 class MemoryBank:
-    """
-    Stores and queries episodic memories.
+    """Stores and queries episodic memories.
 
     Supports chronological retrieval, valence-weighted queries,
     and rolling statistics for emotion detection.

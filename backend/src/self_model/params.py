@@ -6,8 +6,7 @@ from src.shared.validators import validate_real
 
 
 class SelfModelParams(BaseModel):
-    """
-    Tunable parameters for the self-model dynamics.
+    """Tunable parameters for the self-model dynamics.
 
     Controls behavioral evidence accumulation, self-model update rates,
     emotion thresholds, and personality modulation.

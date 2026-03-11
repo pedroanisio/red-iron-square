@@ -1,5 +1,4 @@
-"""
-Self-related emotion detection.
+"""Self-related emotion detection.
 
 Covers pride, shame, authenticity, identity threat/crisis.
 """
@@ -37,8 +36,7 @@ class SelfEmotionReading(BaseModel):
 
 
 class SelfEmotionDetector:
-    """
-    Detects self-related emotions from self-model metrics.
+    """Detects self-related emotions from self-model metrics.
 
     Uses ONLY public properties/methods of SelfModel.
     """

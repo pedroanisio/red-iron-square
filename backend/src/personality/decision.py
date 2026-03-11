@@ -14,8 +14,7 @@ _log = get_logger(module="personality.decision")
 
 
 class DecisionEngine:
-    """
-    Computes utility scores for actions and selects via Boltzmann sampling.
+    """Computes utility scores for actions and selects via Boltzmann sampling.
 
     U(psi, s, a) = bias + sum_i f_i(s_i, psi_i) * a_modifiers_i
 
@@ -131,8 +130,7 @@ def compute_activation_batch(
     scenarios: np.ndarray,
     hp: HyperParameters = HyperParameters(),
 ) -> np.ndarray:
-    """
-    Vectorized activation computation for batch simulation.
+    """Vectorized activation computation for batch simulation.
 
     Assumes standard 8-dimensional OCEAN+RIT layout.
     For custom registries, use DecisionEngine.compute_activations instead.

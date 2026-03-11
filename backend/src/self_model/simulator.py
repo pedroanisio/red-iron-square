@@ -30,8 +30,7 @@ class SelfAwareTickResult(TickResult):
 
 
 class SelfAwareSimulator(TemporalSimulator):
-    """
-    Extends TemporalSimulator with a self-model via inheritance.
+    """Extends TemporalSimulator with a self-model via inheritance.
 
     All temporal logic is inherited.  This class adds only:
         - Pre-decision: self-model predicts (state-aware).

@@ -13,8 +13,7 @@ if TYPE_CHECKING:
 
 
 class DimensionVector:
-    """
-    Base class for N-dimensional vectors aligned to a DimensionRegistry.
+    """Base class for N-dimensional vectors aligned to a DimensionRegistry.
 
     Provides the shared dual-constructor pattern (values dict OR numpy array)
     with [0, 1] validation.  Subclasses add domain-specific semantics.

@@ -8,8 +8,7 @@ from src.personality.hyperparameters import HyperParameters, ResilienceMode
 
 
 class ActivationFunctions:
-    """
-    Activation functions f_i : [0,1] x [0,1] -> [0,1].
+    """Activation functions f_i : [0,1] x [0,1] -> [0,1].
 
     Every function maps (stimulus, trait) to a value in [0, 1].
     Downstream code depends on this guarantee.
@@ -46,8 +45,7 @@ class ActivationFunctions:
         trait: float,
         _hp: HyperParameters,
     ) -> float:
-        """
-        f(s, T) = T*s + (1-T)*(1-s).
+        """f(s, T) = T*s + (1-T)*(1-s).
 
         Shared implementation for agreeableness, idealism, and tradition.
         High trait prefers high stimulus; low trait prefers low stimulus.
@@ -70,7 +68,8 @@ class ActivationFunctions:
         hp: HyperParameters,
         mode: ResilienceMode = ResilienceMode.ACTIVATION,
     ) -> float:
-        """
+        """Compute resilience activation in the selected mode.
+
         ACTIVATION: f_R = R * (1 - exp(-rho * s)).  Adversity mobilizes.
         BUFFER:     f_R = 1 - s * (1 - R).  Resilience absorbs penalty.
         """

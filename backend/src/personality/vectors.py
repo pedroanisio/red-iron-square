@@ -9,8 +9,7 @@ from src.shared.types import DimensionVector
 
 
 class PersonalityVector(DimensionVector):
-    """
-    N-dimensional personality vector psi in [0, 1]^N.
+    """N-dimensional personality vector psi in [0, 1]^N.
 
     Immutable once constructed.
     """
@@ -20,8 +19,7 @@ class PersonalityVector(DimensionVector):
 
 
 class Scenario(DimensionVector):
-    """
-    N-dimensional scenario stimulus vector in [0, 1]^N.
+    """N-dimensional scenario stimulus vector in [0, 1]^N.
 
     Each component is the stimulus intensity for the corresponding
     personality dimension.
@@ -45,8 +43,7 @@ class Scenario(DimensionVector):
 
 
 class Action:
-    """
-    A possible action in response to a scenario.
+    """A possible action in response to a scenario.
 
     `modifiers` is an N-dimensional vector in [-1, 1] representing how
     well-suited this action is along each dimension.

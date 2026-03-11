@@ -33,8 +33,7 @@ class TickResult(BaseModel):
 
 
 class TemporalSimulator:
-    """
-    The main simulation loop: personality x scenarios x time -> emotion traces.
+    """The main simulation loop: personality x scenarios x time -> emotion traces.
 
     Pipeline per tick:
         1. Compute state-modulated activations

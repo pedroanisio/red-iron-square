@@ -60,8 +60,7 @@ DEFAULT_DIMENSIONS: tuple[Dimension, ...] = (
 
 
 class DimensionRegistry:
-    """
-    Ordered set of dimensions with index lookups.
+    """Ordered set of dimensions with index lookups.
 
     Decouples the framework from a hardcoded dimension count: register
     5 (pure OCEAN), 8 (OCEAN + RIT), or any custom set.

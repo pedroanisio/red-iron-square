@@ -8,8 +8,7 @@ from src.shared.validators import validate_real
 
 
 class HyperParameters(BaseModel):
-    """
-    Tunable constants for the activation functions.
+    """Tunable constants for the activation functions.
 
     Separated from the functions so they can be configured per simulation
     run, per personality, or per scenario.
@@ -30,8 +29,7 @@ class HyperParameters(BaseModel):
 
 
 class ResilienceMode(Enum):
-    """
-    Controls how resilience activation interprets adversity.
+    """Controls how resilience activation interprets adversity.
 
     ACTIVATION: Adversity mobilizes the resilient person (output rises).
     BUFFER:     Adversity is a penalty; resilience reduces it.

@@ -17,8 +17,7 @@ _log = get_logger(module="self_model.model")
 
 
 class SelfModel:
-    """
-    The agent's internal model of its own personality psi_hat.
+    """The agent's internal model of its own personality psi_hat.
 
     psi_hat can diverge from true psi, creating self-deception,
     identity threat, and self-related emotions.
@@ -83,7 +82,7 @@ class SelfModel:
         return float(np.linalg.norm(self._psi_hat - self._B) / np.sqrt(n))
 
     def current_identity_drift(self) -> float:
-        """delta = ||psi_hat - psi_hat_0|| / sqrt(N)."""
+        """Delta = ||psi_hat - psi_hat_0|| / sqrt(N)."""
         n = self._registry.size
         return float(np.linalg.norm(self._psi_hat - self._psi_hat_0) / np.sqrt(n))
 
@@ -151,8 +150,7 @@ class SelfModel:
         temperature: float = 1.0,
         state: AgentState | None = None,
     ) -> np.ndarray:
-        """
-        Predict action distribution using psi_hat, with optional state modulation.
+        """Predict action distribution using psi_hat, with optional state modulation.
 
         When state is provided, applies the same energy gating and
         mood-temperature modulation as the actual decision pipeline.

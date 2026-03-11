@@ -1,5 +1,4 @@
-"""
-Structured logging configuration using structlog.
+"""Structured logging configuration using structlog.
 
 DISCLAIMER: No information within should be taken for granted.
 Any statement or premise not backed by a real logical definition
@@ -20,8 +19,7 @@ _CONFIGURED = False
 
 
 def configure_logging(*, json_output: bool | None = None) -> None:
-    """
-    Configure structlog processors and output format.
+    """Configure structlog processors and output format.
 
     Idempotent — safe to call multiple times.
     Uses LOG_LEVEL env var (default: INFO) and LOG_FORMAT env var

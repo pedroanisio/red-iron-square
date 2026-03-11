@@ -6,8 +6,7 @@ from pydantic import BaseModel
 
 
 class EmotionLabel(Enum):
-    """
-    Named emotional states that can emerge from the simulation.
+    """Named emotional states that can emerge from the simulation.
 
     Each is defined by its position in the valence x arousal space
     plus specific computational prerequisites.

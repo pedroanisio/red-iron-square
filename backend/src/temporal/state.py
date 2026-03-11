@@ -8,8 +8,7 @@ from src.shared.validators import validate_real, validate_unit_interval
 
 
 class AgentState(BaseModel):
-    """
-    Mutable internal state that evolves across simulation ticks.
+    """Mutable internal state that evolves across simulation ticks.
 
     mood:         Valence axis.  -1 = deeply negative, +1 = elated.
     arousal:      Activation axis.  0 = sluggish, 1 = wired.

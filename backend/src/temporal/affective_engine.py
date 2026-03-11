@@ -17,9 +17,7 @@ _log = get_logger(module="temporal.affective_engine")
 
 
 class AffectiveEngine:
-    """
-    Detects emergent emotions from the combination of current activation
-    vector, internal state, memory bank, and personality.
+    """Detects emergent emotions from activations, state, memory, and personality.
 
     Emotions are NOT hardcoded — they EMERGE from specific patterns,
     analogous to how a doctor reads symptoms.

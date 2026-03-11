@@ -12,8 +12,7 @@ def generate_scenario_sequence(
     pattern: str = "crisis_recovery",
     rng: np.random.Generator | None = None,
 ) -> list[Scenario]:
-    """
-    Generate a sequence of scenarios for simulation.
+    """Generate a sequence of scenarios for simulation.
 
     Patterns: 'stable', 'crisis_recovery', 'monotony', 'random', 'loss'.
     """
