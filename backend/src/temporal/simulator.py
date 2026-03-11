@@ -130,7 +130,7 @@ class TemporalSimulator:
         chosen_action: Action,
         new_state: AgentState,
     ) -> bool:
-        """False if agent withdrew, energy depleted, or frustration maxed."""
+        """Return False if agent withdrew, energy depleted, or frustration maxed."""
         if chosen_action.name == self.WITHDRAW_ACTION_NAME:
             return False
         if new_state.energy <= 1e-9:
@@ -141,7 +141,7 @@ class TemporalSimulator:
 
     @staticmethod
     def _compute_action_effort(action: Action) -> float:
-        """Action effort = L2 norm of the modifier vector."""
+        """Compute action effort as L2 norm of the modifier vector."""
         return float(np.linalg.norm(action.modifiers))
 
     def _store_memory(

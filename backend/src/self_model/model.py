@@ -87,7 +87,7 @@ class SelfModel:
         return float(np.linalg.norm(self._psi_hat - self._psi_hat_0) / np.sqrt(n))
 
     def sustained_coherence_threat(self) -> bool:
-        """Has coherence gap exceeded threshold for enough consecutive ticks?"""
+        """Check if coherence gap exceeded threshold for enough ticks."""
         p = self.params
         if len(self._coherence_history) < p.coherence_threat_window:
             return False

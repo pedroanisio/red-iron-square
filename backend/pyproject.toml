@@ -22,6 +22,9 @@ red-iron-square = "src.sdk.cli:main"
 api = [
     "uvicorn>=0.30",
 ]
+llm = [
+    "anthropic>=0.49",
+]
 
 [dependency-groups]
 dev = [
@@ -39,6 +42,15 @@ packages = ["src"]
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "src/simulation/__init__.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
@@ -53,6 +65,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "fastapi.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "anthropic.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

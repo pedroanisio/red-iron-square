@@ -65,7 +65,7 @@ class SelfEmotionDetector:
     def _detect_pride(
         self, prediction_error: float, outcome: float
     ) -> SelfEmotionReading:
-        """Action consistent with self-concept and succeeded."""
+        """Compute emotion for action consistent with self-concept that succeeded."""
         accuracy = max(0, 1.0 - prediction_error)
         intensity = float(np.clip(accuracy * max(0, outcome), 0, 1))
         return SelfEmotionReading(
