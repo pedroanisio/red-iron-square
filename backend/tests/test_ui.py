@@ -7,60 +7,76 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 pytest.importorskip("flask")
 
 from src.ui.app import _friendly_error, create_ui_app
+from src.ui.models import (
+    BranchResult,
+    ReplayResult,
+    RunListItem,
+    RunSummary,
+    TrajectoryData,
+)
 
 
 class FakeUiClient:
+    """Fake API client for UI tests."""
+
     def health(self) -> dict[str, str]:
+        """Return a healthy status."""
         return {"status": "ok"}
 
-    def list_runs(self) -> list[dict[str, object]]:
+    def list_runs(self) -> list[RunListItem]:
+        """Return sample run list items."""
         return [
-            {
-                "run_id": "run-123",
-                "mode": "temporal",
-                "status": "active",
-                "tick_count": 3,
-                "updated_at": "2026-03-11T10:00:00+00:00",
-            },
-            {
-                "run_id": "run-456",
-                "mode": "self_aware",
-                "status": "active",
-                "tick_count": 0,
-                "updated_at": "2026-03-11T09:00:00+00:00",
-            },
+            RunListItem(
+                run_id="run-123",
+                mode="temporal",
+                status="active",
+                tick_count=3,
+                updated_at="2026-03-11T10:00:00+00:00",
+            ),
+            RunListItem(
+                run_id="run-456",
+                mode="self_aware",
+                status="active",
+                tick_count=0,
+                updated_at="2026-03-11T09:00:00+00:00",
+            ),
         ]
 
-    def create_run(self, payload: dict[str, object]) -> dict[str, object]:
+    def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Return a stub create-run result."""
         return {"run_id": "run-123"}
 
-    def get_run(self, run_id: str) -> dict[str, object]:
-        return {
-            "run_id": run_id,
-            "mode": "temporal",
-            "status": "active",
-            "tick_count": 1,
-            "config": {},
-            "parent_run_id": None,
-            "parent_tick": None,
-            "latest_tick": {"tick": 0, "action": "safe", "outcome": 0.6},
-            "phases": [],
-            "agent_invocation_count": 2,
-            "intervention_count": 1,
-            "created_at": "now",
-            "updated_at": "now",
-        }
+    def get_run(self, run_id: str) -> RunSummary:
+        """Return a sample run summary."""
+        return RunSummary(
+            run_id=run_id,
+            mode="temporal",
+            status="active",
+            tick_count=1,
+            config={},  # type: ignore[typeddict-item]
+            parent_run_id=None,
+            parent_tick=None,
+            latest_tick={"tick": 0, "action": "safe", "outcome": 0.6},
+            phases=[],
+            agent_invocation_count=2,
+            intervention_count=1,
+            created_at="now",
+            updated_at="now",
+        )
 
-    def get_trajectory(self, run_id: str) -> dict[str, object]:
-        return {
-            "run_id": run_id,
-            "tick_count": 2,
-            "ticks": [
+    def get_trajectory(self, run_id: str) -> TrajectoryData:
+        """Return a sample trajectory."""
+        return TrajectoryData(
+            run_id=run_id,
+            tick_count=2,
+            ticks=[
                 {
                     "tick": 0,
                     "action": "safe",
@@ -88,8 +104,10 @@ class FakeUiClient:
                     },
                 },
             ],
-            "phases": [],
-            "agent_invocations": [
+            phases=[
+                {"start_tick": 0, "end_tick": 1, "label": "warmup", "notes": ""},
+            ],
+            agent_invocations=[
                 {
                     "agent_name": "observer_agent",
                     "purpose": "summarize_window",
@@ -97,7 +115,7 @@ class FakeUiClient:
                     "output": {"summary": "stable"},
                 }
             ],
-            "interventions": [
+            interventions=[
                 {
                     "action": "patch_params",
                     "reason": "reduce randomness",
@@ -105,28 +123,47 @@ class FakeUiClient:
                     "payload": {"temperature": 0.5},
                 }
             ],
-        }
+        )
 
-    def assist_step(self, run_id: str, payload: dict[str, object]) -> dict[str, object]:
+    def assist_step(self, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Return a stub assist-step result."""
         return {}
 
-    def intervention(
-        self, run_id: str, payload: dict[str, object]
-    ) -> dict[str, object]:
+    def intervention(self, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Return a stub intervention result."""
         return {}
 
-    def tick(self, run_id: str, payload: dict[str, object]) -> dict[str, object]:
+    def tick(self, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Return a stub tick result."""
         return {}
 
-    def replay_run(self, run_id: str) -> dict[str, object]:
-        return {"run": {"run_id": "run-replay-1"}}
+    def replay_run(self, run_id: str) -> ReplayResult:
+        """Return a sample replay result."""
+        return ReplayResult(
+            run=RunListItem(
+                run_id="run-replay-1",
+                mode="temporal",
+                status="active",
+                tick_count=0,
+                updated_at="now",
+            ),
+        )
 
     def branch_run(
         self,
         run_id: str,
-        payload: dict[str, object],
-    ) -> dict[str, object]:
-        return {"run": {"run_id": "run-branch-1"}}
+        payload: dict[str, Any],
+    ) -> BranchResult:
+        """Return a sample branch result."""
+        return BranchResult(
+            run=RunListItem(
+                run_id="run-branch-1",
+                mode="temporal",
+                status="active",
+                tick_count=0,
+                updated_at="now",
+            ),
+        )
 
 
 def test_friendly_error_maps_json_error() -> None:
@@ -304,6 +341,39 @@ def test_export_returns_json_download() -> None:
     assert b"run-123" in response.data
 
 
+def test_self_aware_run_shows_identity_metrics() -> None:
+    """Self-aware runs display identity drift, coherence, accuracy."""
+
+    class SelfAwareFakeClient(FakeUiClient):
+        """Fake client that returns self-aware run data."""
+
+        def get_run(self, run_id: str) -> RunSummary:
+            """Return a self-aware run."""
+            run = super().get_run(run_id)
+            run["mode"] = "self_aware"
+            return run
+
+        def get_trajectory(self, run_id: str) -> TrajectoryData:
+            """Return trajectory with identity metrics on each tick."""
+            traj = super().get_trajectory(run_id)
+            for tick in traj["ticks"]:
+                tick["identity_drift"] = 0.15
+                tick["self_coherence"] = 0.82
+                tick["self_accuracy"] = 0.71
+            return traj
+
+    app = create_ui_app(api_client=SelfAwareFakeClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+    html = response.data
+
+    assert b"Identity Drift" in html
+    assert b"Self-Coherence" in html
+    assert b"Self-Accuracy" in html
+
+
 def test_htmx_boost_is_enabled() -> None:
     """Body has hx-boost attribute for smoother navigation."""
     app = create_ui_app(api_client=FakeUiClient())
@@ -314,3 +384,44 @@ def test_htmx_boost_is_enabled() -> None:
 
     assert b'hx-boost="true"' in response.data
     assert b"htmx-indicator" in response.data
+
+
+def test_sparkline_shows_phase_markers() -> None:
+    """Phase annotations render as markers on the sparkline."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+
+    assert response.status_code == 200
+    assert b"phase-marker" in response.data
+
+
+def test_compare_route_renders_two_runs() -> None:
+    """Compare route shows side-by-side run data."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/compare?left=run-123&right=run-456")
+
+    assert response.status_code == 200
+    assert b"run-123" in response.data
+    assert b"run-456" in response.data
+    assert b"Compare" in response.data
+
+
+def test_ui_models_are_importable() -> None:
+    """Typed UI models can be imported and have expected annotations."""
+    from src.ui.models import (
+        AgentInvocation,
+        InterventionDecision,
+        TickData,
+    )
+
+    assert "run_id" in RunListItem.__annotations__
+    assert "ticks" in TrajectoryData.__annotations__
+    assert "tick" in TickData.__annotations__
+    assert "agent_name" in AgentInvocation.__annotations__
+    assert "action" in InterventionDecision.__annotations__

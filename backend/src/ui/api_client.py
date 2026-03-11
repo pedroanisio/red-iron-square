@@ -12,6 +12,14 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from src.ui.models import (
+    BranchResult,
+    ReplayResult,
+    RunListItem,
+    RunSummary,
+    TrajectoryData,
+)
+
 
 class ApiClient:
     """Call the FastAPI service from the Flask UI."""
@@ -23,9 +31,9 @@ class ApiClient:
         """Fetch the API health endpoint."""
         return self._request("GET", "/health")
 
-    def list_runs(self) -> list[dict[str, Any]]:
+    def list_runs(self) -> list[RunListItem]:
         """Fetch all runs."""
-        runs: list[dict[str, Any]] = self._request("GET", "/runs")["data"]
+        runs: list[RunListItem] = self._request("GET", "/runs")["data"]
         return runs
 
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -33,14 +41,14 @@ class ApiClient:
         data: dict[str, Any] = self._request("POST", "/runs", payload)["data"]
         return data
 
-    def get_run(self, run_id: str) -> dict[str, Any]:
+    def get_run(self, run_id: str) -> RunSummary:
         """Fetch one run summary."""
-        data: dict[str, Any] = self._request("GET", f"/runs/{run_id}")["data"]
+        data: RunSummary = self._request("GET", f"/runs/{run_id}")["data"]
         return data
 
-    def get_trajectory(self, run_id: str) -> dict[str, Any]:
+    def get_trajectory(self, run_id: str) -> TrajectoryData:
         """Fetch one run trajectory."""
-        data: dict[str, Any] = self._request("GET", f"/runs/{run_id}/trajectory")[
+        data: TrajectoryData = self._request("GET", f"/runs/{run_id}/trajectory")[
             "data"
         ]
         return data
@@ -66,20 +74,20 @@ class ApiClient:
         ]
         return data
 
-    def replay_run(self, run_id: str) -> dict[str, Any]:
+    def replay_run(self, run_id: str) -> ReplayResult:
         """Create a deterministic replay clone."""
-        data: dict[str, Any] = self._request("POST", f"/runs/{run_id}/replay")["data"]
+        data: ReplayResult = self._request("POST", f"/runs/{run_id}/replay")["data"]
         return data
 
     def branch_run(
         self,
         run_id: str,
         payload: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> BranchResult:
         """Create a branch from an existing run."""
-        data: dict[str, Any] = self._request(
-            "POST", f"/runs/{run_id}/branches", payload
-        )["data"]
+        data: BranchResult = self._request("POST", f"/runs/{run_id}/branches", payload)[
+            "data"
+        ]
         return data
 
     def _request(

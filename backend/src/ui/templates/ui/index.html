@@ -31,7 +31,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 {% endmacro %}
 
 {# ── Sparkline SVG macro ── #}
-{% macro sparkline_chart(ticks) %}
+{% macro sparkline_chart(ticks, phases=[], tick_count=0) %}
 {% if ticks | length >= 2 %}
 {% set w = 480 %}{% set h = 120 %}{% set pad = 16 %}
 {% set n = ticks | length %}
@@ -69,6 +69,16 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       </circle>
       {% endif %}
     {% endfor %}
+    {# Phase boundary markers #}
+    {%- for phase in phases %}
+      {%- set px = (phase.start_tick / (tick_count - 1)) * (w - 2 * pad) + pad if tick_count > 1 else w / 2 %}
+      <line x1="{{ px }}" y1="5" x2="{{ px }}" y2="{{ h - 5 }}"
+            stroke="var(--border-2)" stroke-width="1" stroke-dasharray="3,3"
+            class="phase-marker"/>
+      <text x="{{ px + 3 }}" y="12" fill="var(--text-3)"
+            font-size="8" font-family="'DM Mono', monospace"
+            class="phase-marker">{{ phase.label }}</text>
+    {%- endfor %}
   </svg>
   <div class="sparkline-legend">
     <div class="sparkline-legend-item"><span class="sparkline-legend-dot" style="background:var(--red-bright);"></span> Mood</div>
@@ -266,13 +276,14 @@ reduce randomness</textarea>
           <button class="btn btn-secondary" type="submit" style="margin:0;width:auto;padding:8px 14px;" title="Branch from a specific step with optional temperature change">Branch</button>
         </form>
         <a href="{{ url_for('export_trajectory', run_id=run_id) }}" class="btn btn-secondary" style="margin:0;width:auto;padding:8px 14px;text-decoration:none;" title="Download full trajectory as JSON" hx-boost="false">Export JSON</a>
+        <a href="/compare?left={{ run_id }}" class="btn btn-secondary" style="margin:0;width:auto;padding:8px 14px;text-decoration:none;font-size:.75rem;" title="Compare this run with another">Compare</a>
       </div>
     </div>
 
     {% if trajectory and trajectory.ticks | length >= 2 %}
     <div class="card">
       <div class="card-hd"><span class="card-title">Trajectory</span></div>
-      <div class="card-bd">{{ sparkline_chart(trajectory.ticks) }}</div>
+      <div class="card-bd">{{ sparkline_chart(trajectory.ticks, trajectory.phases, trajectory.tick_count) }}</div>
     </div>
     {% endif %}
 
@@ -315,6 +326,23 @@ reduce randomness</textarea>
       </div>
     </div>
     {% endif %}
+
+    {%- if run.mode == 'self_aware' and trajectory and trajectory.ticks %}
+    {%- set last_tick = trajectory.ticks[-1] %}
+    {%- if last_tick.identity_drift is defined %}
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">Identity Metrics</span>
+        <span style="font-size:11px;color:var(--text-3);font-family:var(--mono);">Step {{ last_tick.tick }}</span>
+      </div>
+      <div class="card-bd">
+        {{ state_bar("Identity Drift", last_tick.identity_drift, 0, 1, "var(--amber)") }}
+        {{ state_bar("Self-Coherence", last_tick.self_coherence, 0, 1, "var(--green)") }}
+        {{ state_bar("Self-Accuracy", last_tick.self_accuracy, 0, 1, "var(--text-2)") }}
+      </div>
+    </div>
+    {%- endif %}
+    {%- endif %}
 
     {% if trajectory %}
     <div class="card" id="data-card">

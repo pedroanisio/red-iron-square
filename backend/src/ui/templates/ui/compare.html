@@ -1,0 +1,93 @@
+<!--
+DISCLAIMER: No information within should be taken for granted.
+Any statement or premise not backed by a real logical definition
+or verifiable reference may be invalid, erroneous, or a hallucination.
+-->
+{% extends "ui/layout.html" %}
+{% block content %}
+<main role="main" id="main-content">
+  <h2 style="font-family:'Archivo Black',sans-serif;font-size:1.3rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text);margin-bottom:1.5rem;">
+    Compare Runs
+  </h2>
+
+  <form method="get" action="/compare" style="display:flex;gap:1rem;margin-bottom:2rem;align-items:end;">
+    <div style="flex:1;">
+      <label for="left" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Left Run</label>
+      <input type="text" id="left" name="left" value="{{ left_id }}"
+             placeholder="run-id" style="width:100%;padding:.5rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;">
+    </div>
+    <div style="flex:1;">
+      <label for="right" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Right Run</label>
+      <input type="text" id="right" name="right" value="{{ right_id }}"
+             placeholder="run-id" style="width:100%;padding:.5rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;">
+    </div>
+    <button type="submit" class="btn" style="white-space:nowrap;">Compare</button>
+  </form>
+
+  {% if left_run or right_run %}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+    {# Left panel #}
+    <div>
+      {% if left_run %}
+      <div class="card">
+        <h3 style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--mono);margin-bottom:.5rem;padding:14px 18px;background:var(--raised);border-bottom:1px solid var(--border);">{{ left_id[:16] }}</h3>
+        <div class="card-bd">
+          <p style="font-size:.75rem;color:var(--text-3);">{{ left_run.mode | replace('_',' ') | title }} &middot; {{ left_run.tick_count }} steps &middot; {{ left_run.status }}</p>
+          {% if left_traj and left_traj.ticks %}
+          <table style="width:100%;font-size:.75rem;margin-top:.75rem;border-collapse:collapse;">
+            <thead><tr style="color:var(--text-3);text-align:left;border-bottom:1px solid var(--border);">
+              <th style="padding:.25rem .5rem;">#</th><th style="padding:.25rem .5rem;">Action</th><th style="padding:.25rem .5rem;">Outcome</th><th style="padding:.25rem .5rem;">Mood</th>
+            </tr></thead>
+            <tbody>
+            {% for t in left_traj.ticks %}
+            <tr style="border-bottom:1px solid var(--border);color:var(--text-2);">
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ t.tick }}</td>
+              <td style="padding:.25rem .5rem;">{{ t.action if t.action is string else t.action.name if t.action else '—' }}</td>
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ "%.3f"|format(t.outcome) if t.outcome is defined else '—' }}</td>
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ "%.2f"|format(t.state_after.mood) if t.state_after else '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card"><div class="card-bd" style="color:var(--text-3);">No run selected</div></div>
+      {% endif %}
+    </div>
+
+    {# Right panel #}
+    <div>
+      {% if right_run %}
+      <div class="card">
+        <h3 style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--mono);margin-bottom:.5rem;padding:14px 18px;background:var(--raised);border-bottom:1px solid var(--border);">{{ right_id[:16] }}</h3>
+        <div class="card-bd">
+          <p style="font-size:.75rem;color:var(--text-3);">{{ right_run.mode | replace('_',' ') | title }} &middot; {{ right_run.tick_count }} steps &middot; {{ right_run.status }}</p>
+          {% if right_traj and right_traj.ticks %}
+          <table style="width:100%;font-size:.75rem;margin-top:.75rem;border-collapse:collapse;">
+            <thead><tr style="color:var(--text-3);text-align:left;border-bottom:1px solid var(--border);">
+              <th style="padding:.25rem .5rem;">#</th><th style="padding:.25rem .5rem;">Action</th><th style="padding:.25rem .5rem;">Outcome</th><th style="padding:.25rem .5rem;">Mood</th>
+            </tr></thead>
+            <tbody>
+            {% for t in right_traj.ticks %}
+            <tr style="border-bottom:1px solid var(--border);color:var(--text-2);">
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ t.tick }}</td>
+              <td style="padding:.25rem .5rem;">{{ t.action if t.action is string else t.action.name if t.action else '—' }}</td>
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ "%.3f"|format(t.outcome) if t.outcome is defined else '—' }}</td>
+              <td style="padding:.25rem .5rem;font-family:'DM Mono',monospace;">{{ "%.2f"|format(t.state_after.mood) if t.state_after else '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card"><div class="card-bd" style="color:var(--text-3);">No run selected</div></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

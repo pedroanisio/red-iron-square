@@ -14,6 +14,8 @@ import urllib.error
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
+from src.ui.models import RunListItem
+
 if TYPE_CHECKING:
     from flask import Flask
 
@@ -211,7 +213,43 @@ def create_ui_app(api_client: ApiClient | None = None) -> Flask:
         )
         return response
 
+    @app.get("/compare")
+    def compare() -> str:
+        """Side-by-side trajectory comparison."""
+        left_id = request.args.get("left", "")
+        right_id = request.args.get("right", "")
+        pairs = _fetch_compare_pairs(client, left_id, right_id)
+        return render_template(
+            "ui/compare.html",
+            left_id=left_id,
+            right_id=right_id,
+            **pairs,
+        )
+
     return app
+
+
+def _fetch_compare_pairs(
+    client: ApiClient,
+    left_id: str,
+    right_id: str,
+) -> dict[str, Any]:
+    """Fetch run and trajectory data for compare view."""
+    result: dict[str, Any] = {
+        "left_run": None,
+        "left_traj": None,
+        "right_run": None,
+        "right_traj": None,
+    }
+    for side, run_id in [("left", left_id), ("right", right_id)]:
+        if not run_id:
+            continue
+        try:
+            result[f"{side}_run"] = client.get_run(run_id)
+            result[f"{side}_traj"] = client.get_trajectory(run_id)
+        except _KNOWN_ERRORS:
+            pass
+    return result
 
 
 def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
@@ -219,7 +257,7 @@ def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
     api_ok = False
     run = None
     trajectory = None
-    recent_runs: list[dict[str, Any]] = []
+    recent_runs: list[RunListItem] = []
     if run_id:
         session["run_id"] = run_id
     try:
