@@ -21,19 +21,19 @@ class ActivationFunctions:
     @staticmethod
     def f_openness(stimulus: float, trait: float, hp: HyperParameters) -> float:
         """f_O(s, O) = O * tanh(alpha * s).  Magnitude scaling, saturating."""
-        return trait * np.tanh(hp.alpha * stimulus)
+        return float(trait * np.tanh(hp.alpha * stimulus))
 
     @staticmethod
     def f_conscientiousness(stimulus: float, trait: float, hp: HyperParameters) -> float:
         """f_C(s, C) = sigma(beta * (2C-1) * (s - theta)).  Bipolar sigmoid."""
         t_centered = 2.0 * trait - 1.0
-        return 1.0 / (1.0 + np.exp(-hp.beta * t_centered * (stimulus - hp.c_threshold)))
+        return float(1.0 / (1.0 + np.exp(-hp.beta * t_centered * (stimulus - hp.c_threshold))))
 
     @staticmethod
     def f_extraversion(stimulus: float, trait: float, hp: HyperParameters) -> float:
         """f_E(s, E) = sigma(gamma * (2E-1) * (s - 0.5)).  Bipolar sigmoid."""
         t_centered = 2.0 * trait - 1.0
-        return 1.0 / (1.0 + np.exp(-hp.gamma * t_centered * (stimulus - 0.5)))
+        return float(1.0 / (1.0 + np.exp(-hp.gamma * t_centered * (stimulus - 0.5))))
 
     @staticmethod
     def _f_linear_interpolation(stimulus: float, trait: float, _hp: HyperParameters) -> float:
@@ -52,7 +52,7 @@ class ActivationFunctions:
     @staticmethod
     def f_neuroticism(stimulus: float, trait: float, hp: HyperParameters) -> float:
         """f_N(s, N) = exp(-delta * N * s^2).  Gaussian decay under stress."""
-        return np.exp(-hp.delta * trait * stimulus ** 2)
+        return float(np.exp(-hp.delta * trait * stimulus ** 2))
 
     @staticmethod
     def f_resilience(
@@ -66,7 +66,7 @@ class ActivationFunctions:
         BUFFER:     f_R = 1 - s * (1 - R).  Resilience absorbs penalty.
         """
         if mode == ResilienceMode.ACTIVATION:
-            return trait * (1.0 - np.exp(-hp.rho * stimulus))
+            return float(trait * (1.0 - np.exp(-hp.rho * stimulus)))
         return 1.0 - stimulus * (1.0 - trait)
 
 

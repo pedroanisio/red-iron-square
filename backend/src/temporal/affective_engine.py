@@ -4,9 +4,12 @@ import numpy as np
 
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import PersonalityVector
+from src.shared.logging import get_logger
 from src.temporal.state import AgentState
 from src.temporal.memory import MemoryBank
 from src.temporal.emotions import EmotionLabel, EmotionReading, EmotionThresholds
+
+_log = get_logger(module="temporal.affective_engine")
 
 
 class AffectiveEngine:
@@ -46,7 +49,14 @@ class AffectiveEngine:
             self._detect_creativity(activations, state, registry),
             self._detect_focus(activations, state, registry),
         ]
-        return [r for r in readings if r.intensity >= self.th.report_threshold]
+        detected = [r for r in readings if r.intensity >= self.th.report_threshold]
+        if detected:
+            _log.debug(
+                "emotions_detected",
+                labels=[r.label.value for r in detected],
+                count=len(detected),
+            )
+        return detected
 
     def _detect_excitement(self, state: AgentState) -> EmotionReading:
         """High positive mood + high arousal."""

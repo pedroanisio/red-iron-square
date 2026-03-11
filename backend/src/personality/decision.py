@@ -8,6 +8,9 @@ from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.hyperparameters import HyperParameters, ResilienceMode
 from src.personality.activations import DEFAULT_ACTIVATION_REGISTRY
+from src.shared.logging import get_logger
+
+_log = get_logger(module="personality.decision")
 
 
 class DecisionEngine:
@@ -105,6 +108,13 @@ class DecisionEngine:
         probs = exp_logits / exp_logits.sum()
 
         chosen_idx = rng.choice(len(actions), p=probs)
+        _log.debug(
+            "action_selected",
+            action=actions[chosen_idx].name,
+            temperature=round(temperature, 4),
+            utility_spread=round(float(utilities.max() - utilities.min()), 4),
+            num_actions=len(actions),
+        )
         return actions[chosen_idx], probs
 
 

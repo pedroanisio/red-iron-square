@@ -3,7 +3,7 @@
 from collections import deque
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.temporal.state import AgentState
 
@@ -16,7 +16,7 @@ class MemoryEntry(BaseModel):
     valence: subjective emotional valence in [-1, 1].
     """
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     tick: int
     scenario_name: str

@@ -37,8 +37,8 @@ class AgentState(BaseModel):
         return np.array([self.mood, self.arousal, self.energy,
                          self.satisfaction, self.frustration])
 
-    def copy(self) -> "AgentState":
-        """Return an independent copy."""
+    def snapshot(self) -> "AgentState":
+        """Return an independent copy of the current state."""
         return AgentState(
             mood=self.mood, arousal=self.arousal, energy=self.energy,
             satisfaction=self.satisfaction, frustration=self.frustration,

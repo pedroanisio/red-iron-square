@@ -6,11 +6,14 @@ from collections import deque
 import numpy as np
 
 from src.shared.validators import validate_unit_interval
+from src.shared.logging import get_logger
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
 from src.temporal.state import AgentState
 from src.self_model.params import SelfModelParams
+
+_log = get_logger(module="self_model.model")
 
 
 class SelfModel:
@@ -118,6 +121,16 @@ class SelfModel:
         update_mag = float(np.linalg.norm(delta) / np.sqrt(self._registry.size))
 
         self._coherence_history.append(coherence)
+
+        _log.debug(
+            "self_model_updated",
+            coherence_gap=round(coherence, 4),
+            identity_drift=round(drift, 4),
+            update_magnitude=round(update_mag, 4),
+        )
+
+        if self.sustained_coherence_threat():
+            _log.warning("sustained_coherence_threat")
 
         return {
             "self_coherence": coherence,

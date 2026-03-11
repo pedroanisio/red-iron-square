@@ -3,21 +3,24 @@
 from typing import Optional, Sequence
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
+from src.shared.logging import get_logger
 from src.temporal.state import AgentState, StateTransitionParams, update_state
 from src.temporal.memory import MemoryBank, MemoryEntry
 from src.temporal.emotions import EmotionReading, EmotionThresholds
 from src.temporal.affective_engine import AffectiveEngine
 
+_log = get_logger(module="temporal.simulator")
+
 
 class TickResult(BaseModel):
     """Complete result for a single simulation tick."""
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     tick: int
     scenario: Scenario
@@ -145,7 +148,7 @@ class TemporalSimulator:
 
     def tick(self, scenario: Scenario, outcome: Optional[float] = None) -> TickResult:
         """Execute one simulation tick."""
-        state_before = self.state.copy()
+        state_before = self.state.snapshot()
         activations = self._compute_modulated_activations(scenario)
         temperature = self._compute_effective_temperature()
 
@@ -155,19 +158,19 @@ class TemporalSimulator:
             activations_override=activations,
         )
 
-        outcome = self._resolve_outcome(outcome, activations, chosen_action, scenario)
+        resolved_outcome = self._resolve_outcome(outcome, activations, chosen_action, scenario)
         counterfactual = self._compute_counterfactual(activations, chosen_action, scenario)
 
         action_effort = self._compute_action_effort(chosen_action)
         new_state = update_state(
-            self.state, outcome, self.personality, scenario,
+            self.state, resolved_outcome, self.personality, scenario,
             self.state_params, action_effort=action_effort,
         )
         is_acting = self._determine_is_still_acting(chosen_action, new_state)
 
         self._store_memory(
             self._tick_counter, state_before, scenario,
-            chosen_action, outcome, counterfactual,
+            chosen_action, resolved_outcome, counterfactual,
         )
 
         emotions = self.affect.detect_all(
@@ -178,9 +181,29 @@ class TemporalSimulator:
         self.state = new_state
         self._tick_counter += 1
 
+        if not is_acting:
+            _log.warning(
+                "agent_withdrawal",
+                tick=self._tick_counter - 1,
+                action=chosen_action.name,
+                energy=new_state.energy,
+                frustration=new_state.frustration,
+            )
+
+        _log.info(
+            "tick_complete",
+            tick=self._tick_counter - 1,
+            scenario=scenario.name,
+            action=chosen_action.name,
+            outcome=round(resolved_outcome, 4),
+            mood=round(new_state.mood, 4),
+            energy=round(new_state.energy, 4),
+            emotions_detected=len(emotions),
+        )
+
         return TickResult(
             tick=self._tick_counter - 1, scenario=scenario, action=chosen_action,
-            outcome=outcome, state_before=state_before, state_after=new_state,
+            outcome=resolved_outcome, state_before=state_before, state_after=new_state,
             activations=activations, emotions=emotions, probabilities=probs,
         )
 

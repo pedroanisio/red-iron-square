@@ -1,3 +1,4 @@
 *.pyc
 .claude/settings.local.json
 backend/.coverage
+*.egg-info*
