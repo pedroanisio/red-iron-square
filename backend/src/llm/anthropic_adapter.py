@@ -51,13 +51,14 @@ class AnthropicAdapter:
     def _build_default_client() -> AnthropicClientProtocol:
         """Construct the default Anthropic client lazily."""
         load_dotenv()
-        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTROPHIC_API_KEY")
+        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv(
+            "ANTROPHIC_API_KEY"  # legacy typo kept for backwards compatibility
+        )
         auth_token = os.getenv("ANTHROPIC_AUTH_TOKEN")
         if not api_key and not auth_token:
             raise LLMConfigurationError(
                 "Anthropic credentials are not configured. "
-                "Set `ANTHROPIC_API_KEY` (or legacy `ANTROPHIC_API_KEY`) "
-                "or `ANTHROPIC_AUTH_TOKEN`."
+                "Set `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`."
             )
         from anthropic import Anthropic
 

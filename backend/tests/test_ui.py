@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("flask")
 
-from src.ui.app import create_ui_app
+from src.ui.app import _friendly_error, create_ui_app
 
 
 class FakeUiClient:
@@ -118,6 +118,44 @@ class FakeUiClient:
     def tick(self, run_id: str, payload: dict[str, object]) -> dict[str, object]:
         return {}
 
+    def replay_run(self, run_id: str) -> dict[str, object]:
+        return {"run": {"run_id": "run-replay-1"}}
+
+    def branch_run(
+        self,
+        run_id: str,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
+        return {"run": {"run_id": "run-branch-1"}}
+
+
+def test_friendly_error_maps_json_error() -> None:
+    """Known exception types produce user-friendly messages."""
+    import json
+
+    exc = json.JSONDecodeError("Expecting value", "", 0)
+    result = _friendly_error(exc, "Parse failed")
+
+    assert "Invalid JSON" in result
+    assert "Parse failed" in result
+
+
+def test_friendly_error_truncates_long_message() -> None:
+    """Unknown exceptions are truncated to 200 characters."""
+    exc = RuntimeError("x" * 300)
+    result = _friendly_error(exc, "Oops")
+
+    assert len(result) < 220
+    assert result.endswith("...")
+
+
+def test_friendly_error_passes_through_short_unknown() -> None:
+    """Short unknown exceptions are shown as-is."""
+    exc = ValueError("bad value")
+    result = _friendly_error(exc, "Step failed")
+
+    assert result == "Step failed: bad value"
+
 
 def test_index_renders() -> None:
     app = create_ui_app(api_client=FakeUiClient())
@@ -155,7 +193,49 @@ def test_index_shows_run_browser() -> None:
     assert b"Recent Runs" in response.data
 
 
+def test_index_has_accessibility_landmarks() -> None:
+    """Page includes skip link, ARIA roles, and landmarks."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/")
+    html = response.data
+
+    assert b'class="skip-link"' in html
+    assert b'role="banner"' in html
+    assert b'role="main"' in html
+    assert b'role="complementary"' in html
+
+
+def test_index_tabs_have_aria_attributes() -> None:
+    """Tab buttons use WAI-ARIA tab pattern."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+    html = response.data
+
+    assert b'role="tablist"' in html
+    assert b'role="tab"' in html
+    assert b'role="tabpanel"' in html
+    assert b'aria-selected="true"' in html
+
+
+def test_index_json_textareas_have_validation_attr() -> None:
+    """JSON textareas include data-validate-json for client-side validation."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert b"data-validate-json" in response.data
+
+
 def test_index_shows_sparkline_with_trajectory() -> None:
+    """Sparkline SVG renders with accessible title and hover targets."""
     app = create_ui_app(api_client=FakeUiClient())
     app.config["TESTING"] = True
     client = app.test_client()
@@ -165,3 +245,72 @@ def test_index_shows_sparkline_with_trajectory() -> None:
     assert response.status_code == 200
     assert b"<svg" in response.data
     assert b"Trajectory" in response.data
+    assert b"<title>" in response.data
+    assert b"<circle" in response.data
+
+
+def test_run_view_has_action_toolbar() -> None:
+    """Run view shows replay, branch, and export buttons."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+    html = response.data
+
+    assert b"Replay" in html
+    assert b"Branch" in html
+    assert b"Export JSON" in html
+
+
+def test_replay_redirects_to_new_run() -> None:
+    """Replay route creates a clone and redirects."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post("/runs/run-123/replay")
+
+    assert response.status_code == 302
+    assert "run-replay-1" in response.headers["Location"]
+
+
+def test_branch_redirects_to_new_run() -> None:
+    """Branch route creates a fork and redirects."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post(
+        "/runs/run-123/branch",
+        data={"parent_tick": "1", "temperature": "0.5"},
+    )
+
+    assert response.status_code == 302
+    assert "run-branch-1" in response.headers["Location"]
+
+
+def test_export_returns_json_download() -> None:
+    """Export route returns a JSON attachment."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/runs/run-123/export")
+
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    assert "attachment" in response.headers["Content-Disposition"]
+    assert b"run-123" in response.data
+
+
+def test_htmx_boost_is_enabled() -> None:
+    """Body has hx-boost attribute for smoother navigation."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert b'hx-boost="true"' in response.data
+    assert b"htmx-indicator" in response.data

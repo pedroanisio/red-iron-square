@@ -66,6 +66,22 @@ class ApiClient:
         ]
         return data
 
+    def replay_run(self, run_id: str) -> dict[str, Any]:
+        """Create a deterministic replay clone."""
+        data: dict[str, Any] = self._request("POST", f"/runs/{run_id}/replay")["data"]
+        return data
+
+    def branch_run(
+        self,
+        run_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create a branch from an existing run."""
+        data: dict[str, Any] = self._request(
+            "POST", f"/runs/{run_id}/branches", payload
+        )["data"]
+        return data
+
     def _request(
         self,
         method: str,

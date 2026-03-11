@@ -21,7 +21,12 @@ from src.api.run_models import (
     TickEventRecord,
     utc_now,
 )
-from src.api.run_store_support import SCHEMA_SQL, parse_json_rows
+from src.api.run_store_support import (
+    SCHEMA_SQL,
+    invocation_row_to_dict,
+    parse_json_rows,
+    run_row_to_dict,
+)
 
 
 class RunStore:
@@ -85,19 +90,7 @@ class RunStore:
             ORDER BY updated_at DESC
             """
         ).fetchall()
-        return [
-            {
-                "run_id": row["run_id"],
-                "mode": row["mode"],
-                "status": row["status"],
-                "config": json.loads(row["config_json"]),
-                "parent_run_id": row["parent_run_id"],
-                "parent_tick": row["parent_tick"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-            }
-            for row in rows
-        ]
+        return [run_row_to_dict(row) for row in rows]
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         """Return one run record or `None`."""
@@ -113,16 +106,7 @@ class RunStore:
         ).fetchone()
         if row is None:
             return None
-        return {
-            "run_id": row["run_id"],
-            "mode": row["mode"],
-            "status": row["status"],
-            "config": json.loads(row["config_json"]),
-            "parent_run_id": row["parent_run_id"],
-            "parent_tick": row["parent_tick"],
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-        }
+        return run_row_to_dict(row)
 
     def update_run_config(self, run_id: str, config: dict[str, Any]) -> None:
         """Replace the stored run configuration."""
@@ -242,18 +226,7 @@ class RunStore:
             """,
             (run_id,),
         ).fetchall()
-        return [
-            {
-                "agent_name": row["agent_name"],
-                "purpose": row["purpose"],
-                "input": json.loads(row["input_json"]),
-                "output": json.loads(row["output_json"]),
-                "raw_text": row["raw_text"],
-                "metadata": json.loads(row["metadata_json"]),
-                "created_at": row["created_at"],
-            }
-            for row in rows
-        ]
+        return [invocation_row_to_dict(row) for row in rows]
 
     def append_intervention_decision(
         self,

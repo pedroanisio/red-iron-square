@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
+from src.api.run_client_builder import RunClientBuilder
 from src.api.run_models import (
     AgentInvocationRecord,
     InterventionDecisionRecord,
@@ -20,15 +19,18 @@ from src.api.run_models import (
 from src.api.run_store import RunStore
 from src.llm.schemas import LLMInvocationResult
 from src.sdk import AgentSDK
-from src.sdk.self_model_client import SelfModelSimulationClient
-from src.sdk.simulation_client import TemporalSimulationClient
 
 
 class RunService:
     """Coordinate persisted runs with simulator reconstruction."""
 
-    def __init__(self, store: RunStore) -> None:
+    def __init__(
+        self,
+        store: RunStore,
+        client_builder: RunClientBuilder | None = None,
+    ) -> None:
         self._store = store
+        self._builder = client_builder or RunClientBuilder()
 
     def list_runs(self) -> list[dict[str, Any]]:
         """Return all runs with tick counts, most recent first."""
@@ -64,7 +66,7 @@ class RunService:
     ) -> dict[str, Any]:
         """Execute and persist one tick."""
         run = self._require_run(run_id)
-        client = self._rebuild_client(run["config"], self._store.list_ticks(run_id))
+        client = self._builder.build(run["config"], self._store.list_ticks(run_id))
         sdk = AgentSDK.default()
         scenario = sdk.scenario(
             scenario_payload["values"],
@@ -236,48 +238,3 @@ class RunService:
         if run is None:
             raise KeyError(run_id)
         return run
-
-    def _rebuild_client(
-        self,
-        config: dict[str, Any],
-        prior_ticks: list[TickEventRecord],
-    ) -> TemporalSimulationClient | SelfModelSimulationClient:
-        sdk = AgentSDK.default()
-        personality = sdk.personality(config["personality"])
-        actions = [
-            sdk.action(
-                action["name"],
-                action["modifiers"],
-                description=action.get("description", ""),
-            )
-            for action in config["actions"]
-        ]
-        rng = (
-            np.random.default_rng(config["seed"])
-            if config.get("seed") is not None
-            else np.random.default_rng()
-        )
-        client: TemporalSimulationClient | SelfModelSimulationClient
-        if config.get("self_model") is None:
-            client = sdk.simulator(
-                personality,
-                actions,
-                temperature=config.get("temperature", 1.0),
-                rng=rng,
-            )
-        else:
-            client = sdk.self_aware_simulator(
-                personality,
-                sdk.initial_self_model(config["self_model"]),
-                actions,
-                temperature=config.get("temperature", 1.0),
-                rng=rng,
-            )
-        for tick in prior_ticks:
-            scenario = sdk.scenario(
-                tick.scenario["values"],
-                name=tick.scenario.get("name", ""),
-                description=tick.scenario.get("description", ""),
-            )
-            client.tick(scenario, outcome=tick.requested_outcome)
-        return client

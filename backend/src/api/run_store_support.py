@@ -64,6 +64,16 @@ CREATE TABLE IF NOT EXISTS intervention_decision (
 );
 """
 
+_RUN_FIELDS = (
+    "run_id",
+    "mode",
+    "status",
+    "parent_run_id",
+    "parent_tick",
+    "created_at",
+    "updated_at",
+)
+
 
 def parse_json_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Decode JSON-like text fields in row dictionaries."""
@@ -77,3 +87,24 @@ def parse_json_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 item[key] = bool(value)
         results.append(item)
     return results
+
+
+def run_row_to_dict(row: Any) -> dict[str, Any]:
+    """Convert a SQLite Row from simulation_run into a plain dict."""
+    return {
+        **{field: row[field] for field in _RUN_FIELDS},
+        "config": json.loads(row["config_json"]),
+    }
+
+
+def invocation_row_to_dict(row: Any) -> dict[str, Any]:
+    """Convert a SQLite Row from agent_invocation into a plain dict."""
+    return {
+        "agent_name": row["agent_name"],
+        "purpose": row["purpose"],
+        "input": json.loads(row["input_json"]),
+        "output": json.loads(row["output_json"]),
+        "raw_text": row["raw_text"],
+        "metadata": json.loads(row["metadata_json"]),
+        "created_at": row["created_at"],
+    }

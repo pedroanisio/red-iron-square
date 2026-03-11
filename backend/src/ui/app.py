@@ -7,8 +7,11 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
+import urllib.error
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -25,6 +28,54 @@ else:
     _FLASK_IMPORT_ERROR = None
 
 from src.ui.api_client import ApiClient
+
+_KNOWN_ERRORS = (
+    json.JSONDecodeError,
+    ConnectionError,
+    urllib.error.URLError,
+    TimeoutError,
+    ValueError,
+    KeyError,
+)
+
+_ERROR_MAP: dict[type, str] = {
+    json.JSONDecodeError: "Invalid JSON — check syntax near the reported position.",
+    ConnectionError: "Cannot reach the API server. Is it running?",
+    urllib.error.URLError: "Cannot reach the API server. Is it running?",
+    TimeoutError: "The API request timed out. Try again or check the server.",
+}
+
+
+def _friendly_error(exc: Exception, action: str) -> str:
+    """Map an exception to a user-friendly flash message."""
+    for exc_type, message in _ERROR_MAP.items():
+        if isinstance(exc, exc_type):
+            return f"{action}: {message}"
+    raw = str(exc)
+    if len(raw) > 200:
+        raw = raw[:200] + "..."
+    return f"{action}: {raw}"
+
+
+def _flash_on_error(action: str) -> Callable[..., Any]:
+    """Handle known errors by flashing a friendly message and redirecting."""
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return fn(*args, **kwargs)
+            except _KNOWN_ERRORS as exc:
+                flash(_friendly_error(exc, action), "error")
+                run_id = kwargs.get("run_id") or args[0] if args else None
+                if run_id:
+                    return redirect(url_for("index", run_id=run_id))
+                return redirect(url_for("index"))
+
+        return wrapper
+
+    return decorator
+
 
 DEFAULT_RUN_CONFIG = {
     "personality": {
@@ -67,68 +118,104 @@ def create_ui_app(api_client: ApiClient | None = None) -> Flask:
         return result
 
     @app.post("/runs/create")
+    @_flash_on_error("Run creation failed")
     def create_run() -> Any:
         """Create a run from JSON config."""
-        try:
-            payload = json.loads(request.form["config_json"])
-            run = client.create_run(payload)
-            session["run_id"] = run["run_id"]
-            flash(f"Created run {run['run_id']}.", "success")
-        except Exception as exc:  # noqa: BLE001
-            flash(f"Run creation failed: {exc}", "error")
+        payload = json.loads(request.form["config_json"])
+        run = client.create_run(payload)
+        session["run_id"] = run["run_id"]
+        flash(f"Created run {run['run_id']}.", "success")
         return redirect(url_for("index"))
 
     @app.post("/runs/<run_id>/assist-step")
+    @_flash_on_error("Assisted step failed")
     def assist_step(run_id: str) -> Any:
         """Trigger one assisted step."""
-        try:
-            client.assist_step(
-                run_id,
-                {
-                    "goals": _parse_lines(request.form.get("goals", "")),
-                    "window": int(request.form.get("window", "5")),
-                },
-            )
-            flash("Assisted step completed.", "success")
-        except Exception as exc:  # noqa: BLE001
-            flash(f"Assisted step failed: {exc}", "error")
+        client.assist_step(
+            run_id,
+            {
+                "goals": _parse_lines(request.form.get("goals", "")),
+                "window": int(request.form.get("window", "5")),
+            },
+        )
+        flash("Assisted step completed.", "success")
         return redirect(url_for("index", run_id=run_id))
 
     @app.post("/runs/<run_id>/intervention")
+    @_flash_on_error("Intervention failed")
     def intervention(run_id: str) -> Any:
         """Trigger one intervention recommendation."""
-        try:
-            client.intervention(
-                run_id,
-                {
-                    "goals": _parse_lines(request.form.get("goals", "")),
-                    "window": int(request.form.get("window", "10")),
-                    "apply_patch": request.form.get("apply_patch") == "on",
-                },
-            )
-            flash("Intervention call completed.", "success")
-        except Exception as exc:  # noqa: BLE001
-            flash(f"Intervention failed: {exc}", "error")
+        client.intervention(
+            run_id,
+            {
+                "goals": _parse_lines(request.form.get("goals", "")),
+                "window": int(request.form.get("window", "10")),
+                "apply_patch": request.form.get("apply_patch") == "on",
+            },
+        )
+        flash("Intervention call completed.", "success")
         return redirect(url_for("index", run_id=run_id))
 
     @app.post("/runs/<run_id>/tick")
+    @_flash_on_error("Manual step failed")
     def tick(run_id: str) -> Any:
         """Trigger one manual tick from JSON scenario input."""
-        try:
-            payload = {
-                "scenario": json.loads(request.form["scenario_json"]),
-                "outcome": _parse_optional_float(request.form.get("outcome", "")),
-            }
-            client.tick(run_id, payload)
-            flash("Manual tick completed.", "success")
-        except Exception as exc:  # noqa: BLE001
-            flash(f"Manual tick failed: {exc}", "error")
+        payload = {
+            "scenario": json.loads(request.form["scenario_json"]),
+            "outcome": _parse_optional_float(
+                request.form.get("outcome", ""),
+            ),
+        }
+        client.tick(run_id, payload)
+        flash("Manual tick completed.", "success")
         return redirect(url_for("index", run_id=run_id))
+
+    @app.post("/runs/<run_id>/replay")
+    @_flash_on_error("Replay failed")
+    def replay_run(run_id: str) -> Any:
+        """Create a deterministic replay clone."""
+        result = client.replay_run(run_id)
+        new_id = result["run"]["run_id"]
+        session["run_id"] = new_id
+        flash(f"Replay created: {new_id}.", "success")
+        return redirect(url_for("index", run_id=new_id))
+
+    @app.post("/runs/<run_id>/branch")
+    @_flash_on_error("Branch failed")
+    def branch_run(run_id: str) -> Any:
+        """Create a branch from an existing run."""
+        payload: dict[str, Any] = {}
+        tick_val = request.form.get("parent_tick", "").strip()
+        if tick_val:
+            payload["parent_tick"] = int(tick_val)
+        temp_val = request.form.get("temperature", "").strip()
+        if temp_val:
+            payload["temperature"] = float(temp_val)
+        result = client.branch_run(run_id, payload)
+        new_id = result["run"]["run_id"]
+        session["run_id"] = new_id
+        flash(f"Branch created: {new_id}.", "success")
+        return redirect(url_for("index", run_id=new_id))
+
+    @app.get("/runs/<run_id>/export")
+    @_flash_on_error("Export failed")
+    def export_trajectory(run_id: str) -> Any:
+        """Download trajectory as JSON."""
+        trajectory = client.get_trajectory(run_id)
+        response = app.response_class(
+            json.dumps(trajectory, indent=2),
+            mimetype="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename={run_id}.json",
+            },
+        )
+        return response
 
     return app
 
 
 def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
+    """Gather template context, tolerating API failures gracefully."""
     api_ok = False
     run = None
     trajectory = None
@@ -137,18 +224,18 @@ def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
         session["run_id"] = run_id
     try:
         api_ok = client.health()["status"] == "ok"
-    except Exception:  # noqa: BLE001
+    except _KNOWN_ERRORS:
         api_ok = False
     if api_ok:
         try:
             recent_runs = client.list_runs()
-        except Exception:  # noqa: BLE001
+        except _KNOWN_ERRORS:
             recent_runs = []
         if run_id:
             try:
                 run = client.get_run(run_id)
                 trajectory = client.get_trajectory(run_id)
-            except Exception:  # noqa: BLE001
+            except _KNOWN_ERRORS:
                 run = None
                 trajectory = None
     return {
