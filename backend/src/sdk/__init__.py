@@ -6,6 +6,8 @@ from collections.abc import Mapping, Sequence
 
 import numpy as np
 
+from src.constructed_emotion.affect import ConstructedAffectiveEngine
+from src.constructed_emotion.params import ConstructedEmotionParams
 from src.efe.engine import EFEEngine
 from src.efe.params import EFEParams
 from src.personality.decision import DecisionEngine
@@ -31,6 +33,8 @@ from src.sdk.types import (
     SimulationTrace,
     TickRecord,
 )
+from src.self_evidencing.modulator import SelfEvidencingModulator
+from src.self_evidencing.params import SelfEvidencingParams
 from src.shared.protocols import DecisionEngineProtocol
 
 
@@ -45,6 +49,8 @@ class AgentSDK:
         resilience_mode: ResilienceMode = ResilienceMode.ACTIVATION,
         precision_engine: PrecisionEngine | None = None,
         efe_params: EFEParams | None = None,
+        emotion_params: ConstructedEmotionParams | None = None,
+        self_evidencing_params: SelfEvidencingParams | None = None,
     ) -> None:
         self.registry = registry or build_registry()
         self.engine = DecisionEngine(
@@ -54,6 +60,8 @@ class AgentSDK:
         )
         self._precision_engine = precision_engine
         self._efe_params = efe_params
+        self._emotion_params = emotion_params
+        self._self_evidencing_params = self_evidencing_params
 
     @classmethod
     def default(cls) -> AgentSDK:
@@ -75,6 +83,36 @@ class AgentSDK:
         return cls(
             precision_engine=PrecisionEngine(precision_params),
             efe_params=efe_params or EFEParams(),
+        )
+
+    @classmethod
+    def with_constructed_emotion(
+        cls,
+        emotion_params: ConstructedEmotionParams | None = None,
+        efe_params: EFEParams | None = None,
+        precision_params: PrecisionParams | None = None,
+    ) -> AgentSDK:
+        """Create SDK with EFE + precision + constructed emotion (Phase C1)."""
+        return cls(
+            precision_engine=PrecisionEngine(precision_params),
+            efe_params=efe_params or EFEParams(),
+            emotion_params=emotion_params or ConstructedEmotionParams(),
+        )
+
+    @classmethod
+    def with_self_evidencing(
+        cls,
+        self_evidencing_params: SelfEvidencingParams | None = None,
+        emotion_params: ConstructedEmotionParams | None = None,
+        efe_params: EFEParams | None = None,
+        precision_params: PrecisionParams | None = None,
+    ) -> AgentSDK:
+        """Create SDK with full Phase C: EFE + precision + emotion + self-evidencing."""
+        return cls(
+            precision_engine=PrecisionEngine(precision_params),
+            efe_params=efe_params or EFEParams(),
+            emotion_params=emotion_params or ConstructedEmotionParams(),
+            self_evidencing_params=self_evidencing_params or SelfEvidencingParams(),
         )
 
     @classmethod
@@ -158,6 +196,10 @@ class AgentSDK:
         """Create a temporal simulation client."""
         if self._precision_engine and "precision_engine" not in simulator_kwargs:
             simulator_kwargs["precision_engine"] = self._precision_engine
+        if self._emotion_params and "constructed_affect" not in simulator_kwargs:
+            simulator_kwargs["constructed_affect"] = ConstructedAffectiveEngine(
+                self._emotion_params,
+            )
         engine = self._resolve_engine(personality)
         return TemporalSimulationClient(
             personality,
@@ -177,6 +219,14 @@ class AgentSDK:
         """Create a self-aware simulation client."""
         if self._precision_engine and "precision_engine" not in simulator_kwargs:
             simulator_kwargs["precision_engine"] = self._precision_engine
+        if self._emotion_params and "constructed_affect" not in simulator_kwargs:
+            simulator_kwargs["constructed_affect"] = ConstructedAffectiveEngine(
+                self._emotion_params,
+            )
+        if self._self_evidencing_params and "self_evidencing" not in simulator_kwargs:
+            simulator_kwargs["self_evidencing"] = SelfEvidencingModulator(
+                self._self_evidencing_params,
+            )
         engine = self._resolve_engine(personality)
         return SelfModelSimulationClient(
             personality,
@@ -190,6 +240,8 @@ class AgentSDK:
 
 __all__ = [
     "AgentSDK",
+    "ConstructedAffectiveEngine",
+    "ConstructedEmotionParams",
     "DEFAULT_DIMENSIONS",
     "DecisionResult",
     "EFEEngine",
@@ -198,6 +250,8 @@ __all__ = [
     "PrecisionParams",
     "SelfAwareSimulationTrace",
     "SelfAwareTickRecord",
+    "SelfEvidencingModulator",
+    "SelfEvidencingParams",
     "SimulationTrace",
     "TickRecord",
 ]

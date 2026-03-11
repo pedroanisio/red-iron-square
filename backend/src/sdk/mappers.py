@@ -74,6 +74,18 @@ def tick_result_to_payload(
         payload["prediction_errors"] = PredictionErrorSnapshot.from_errors(
             result.prediction_errors
         ).model_dump()
+    if result.affect_signal is not None:
+        sig = result.affect_signal
+        payload["affect_signal"] = {
+            "valence": float(sig.valence),
+            "arousal_signal": float(sig.arousal_signal),
+            "free_energy": float(sig.free_energy),
+            "is_surprise_spike": sig.is_surprise_spike,
+            "mood": float(sig.mood),
+            "constructed_emotions": emotion_readings_to_payload(
+                sig.constructed_emotions,
+            ),
+        }
     return payload
 
 
@@ -104,4 +116,8 @@ def self_aware_tick_result_to_payload(
             ],
         }
     )
+    if result.self_evidencing_weights is not None:
+        payload["self_evidencing_weights"] = [
+            float(v) for v in result.self_evidencing_weights.tolist()
+        ]
     return payload

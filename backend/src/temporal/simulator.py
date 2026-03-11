@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict
@@ -18,6 +18,7 @@ from src.temporal.memory import MemoryBank, MemoryEntry
 from src.temporal.state import AgentState, StateTransitionParams, update_state
 
 if TYPE_CHECKING:
+    from src.constructed_emotion.affect import AffectSignal, ConstructedAffectiveEngine
     from src.precision.engine import PrecisionEngine
 
 _log = get_logger(module="temporal.simulator")
@@ -39,6 +40,7 @@ class TickResult(BaseModel):
     probabilities: np.ndarray
     precision: PrecisionState | None = None
     prediction_errors: PredictionErrors | None = None
+    affect_signal: Any = None
 
 
 class TemporalSimulator:
@@ -72,6 +74,7 @@ class TemporalSimulator:
         temperature: float = 1.0,
         rng: np.random.Generator | None = None,
         precision_engine: PrecisionEngine | None = None,
+        constructed_affect: ConstructedAffectiveEngine | None = None,
     ) -> None:
         self.personality = personality
         self.actions = list(actions)
@@ -85,6 +88,7 @@ class TemporalSimulator:
         self.rng = rng or np.random.default_rng()
         self._tick_counter = 0
         self._precision_engine = precision_engine
+        self._constructed_affect = constructed_affect
         self._bind_engine_memory()
 
     def _bind_engine_memory(self) -> None:
@@ -207,6 +211,20 @@ class TemporalSimulator:
         errors = self._precision_engine.compute_errors(state, self.personality)
         return precision, errors
 
+    def _run_constructed_affect(
+        self,
+        precision: PrecisionState | None,
+        errors: PredictionErrors | None,
+    ) -> AffectSignal | None:
+        """Run constructed affective engine if available and precision exists."""
+        if self._constructed_affect is None or precision is None or errors is None:
+            return None
+        return self._constructed_affect.process_tick(
+            precision,
+            errors,
+            self.personality,
+        )
+
     @property
     def _uses_efe(self) -> bool:
         """Check if the engine supports EFE-based decisions."""
@@ -274,6 +292,7 @@ class TemporalSimulator:
         )
 
         precision, pred_errors = self._compute_precision(new_state, scenario)
+        affect_sig = self._run_constructed_affect(precision, pred_errors)
 
         self.state = new_state
         self._tick_counter += 1
@@ -310,6 +329,7 @@ class TemporalSimulator:
             probabilities=probs,
             precision=precision,
             prediction_errors=pred_errors,
+            affect_signal=affect_sig,
         )
 
     @property

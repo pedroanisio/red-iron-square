@@ -81,29 +81,31 @@ class RunStore:
 
     def list_runs(self) -> list[dict[str, Any]]:
         """Return all runs ordered by most recently updated."""
-        rows = self._conn.execute(
-            """
-            SELECT run_id, mode, status, config_json,
-                parent_run_id, parent_tick,
-                created_at, updated_at
-            FROM simulation_run
-            ORDER BY updated_at DESC
-            """
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT run_id, mode, status, config_json,
+                    parent_run_id, parent_tick,
+                    created_at, updated_at
+                FROM simulation_run
+                ORDER BY updated_at DESC
+                """
+            ).fetchall()
         return [run_row_to_dict(row) for row in rows]
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         """Return one run record or `None`."""
-        row = self._conn.execute(
-            """
-            SELECT run_id, mode, status, config_json,
-                parent_run_id, parent_tick,
-                created_at, updated_at
-            FROM simulation_run
-            WHERE run_id = ?
-            """,
-            (run_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT run_id, mode, status, config_json,
+                    parent_run_id, parent_tick,
+                    created_at, updated_at
+                FROM simulation_run
+                WHERE run_id = ?
+                """,
+                (run_id,),
+            ).fetchone()
         if row is None:
             return None
         return run_row_to_dict(row)
@@ -137,15 +139,16 @@ class RunStore:
 
     def list_ticks(self, run_id: str) -> list[TickEventRecord]:
         """Return all ticks ordered by tick index."""
-        rows = self._conn.execute(
-            """
-            SELECT tick, scenario_json, requested_outcome, result_json, created_at
-            FROM tick_event
-            WHERE run_id = ?
-            ORDER BY tick ASC
-            """,
-            (run_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT tick, scenario_json, requested_outcome, result_json, created_at
+                FROM tick_event
+                WHERE run_id = ?
+                ORDER BY tick ASC
+                """,
+                (run_id,),
+            ).fetchall()
         return [
             TickEventRecord(
                 tick=row["tick"],
@@ -177,8 +180,8 @@ class RunStore:
 
     def list_phases(self, run_id: str) -> list[dict[str, Any]]:
         """Return all phase annotations for a run."""
-        return parse_json_rows(
-            self._conn.execute(
+        with self._lock:
+            rows = self._conn.execute(
                 """
                 SELECT start_tick, end_tick, label, notes, created_at
                 FROM phase_annotation
@@ -187,7 +190,7 @@ class RunStore:
                 """,
                 (run_id,),
             ).fetchall()
-        )
+        return parse_json_rows(rows)
 
     def append_agent_invocation(
         self, run_id: str, invocation: AgentInvocationRecord
@@ -215,17 +218,18 @@ class RunStore:
 
     def list_agent_invocations(self, run_id: str) -> list[dict[str, Any]]:
         """Return persisted LLM invocations."""
-        rows = self._conn.execute(
-            """
-            SELECT agent_name, purpose, input_json,
-                output_json, raw_text,
-                metadata_json, created_at
-            FROM agent_invocation
-            WHERE run_id = ?
-            ORDER BY invocation_id ASC
-            """,
-            (run_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT agent_name, purpose, input_json,
+                    output_json, raw_text,
+                    metadata_json, created_at
+                FROM agent_invocation
+                WHERE run_id = ?
+                ORDER BY invocation_id ASC
+                """,
+                (run_id,),
+            ).fetchall()
         return [invocation_row_to_dict(row) for row in rows]
 
     def append_intervention_decision(
@@ -252,8 +256,8 @@ class RunStore:
 
     def list_intervention_decisions(self, run_id: str) -> list[dict[str, Any]]:
         """Return persisted intervention decisions."""
-        return parse_json_rows(
-            self._conn.execute(
+        with self._lock:
+            rows = self._conn.execute(
                 """
                 SELECT action, reason, payload_json AS payload, applied, created_at
                 FROM intervention_decision
@@ -262,7 +266,7 @@ class RunStore:
                 """,
                 (run_id,),
             ).fetchall()
-        )
+        return parse_json_rows(rows)
 
     def _insert_simple(self, query: str, params: tuple[object, ...]) -> None:
         with self._lock:

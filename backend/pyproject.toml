@@ -23,7 +23,7 @@ red-iron-square-ui = "src.ui.app:main"
 
 [project.optional-dependencies]
 api = [
-    "uvicorn>=0.30",
+    "uvicorn[standard]>=0.30",
 ]
 ui = [
     "flask>=3.1",

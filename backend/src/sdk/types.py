@@ -31,6 +31,7 @@ class TickRecord(BaseModel):
     probabilities: list[float]
     precision: dict[str, Any] | None = None
     prediction_errors: dict[str, Any] | None = None
+    affect_signal: dict[str, Any] | None = None
 
 
 class SimulationTrace(BaseModel):
@@ -50,6 +51,7 @@ class SelfAwareTickRecord(TickRecord):
     identity_drift: float
     prediction_error: float
     predicted_probabilities: list[float]
+    self_evidencing_weights: list[float] | None = None
 
 
 class SelfAwareSimulationTrace(BaseModel):

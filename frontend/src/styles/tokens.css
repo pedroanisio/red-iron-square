@@ -1,0 +1,19 @@
+:root {
+  color-scheme: dark;
+  --bg: #120d10;
+  --bg-alt: #231317;
+  --panel: rgba(26, 18, 22, 0.88);
+  --panel-soft: rgba(48, 32, 39, 0.74);
+  --line: rgba(242, 218, 192, 0.16);
+  --text: #f7ecde;
+  --muted: #d4bdab;
+  --accent: #cb6a37;
+  --accent-bright: #f2bf8a;
+  --cool: #8ac8c6;
+  --negative: #6e8cbf;
+  --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  --radius: 28px;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-copy: "Baskerville", "Times New Roman", serif;
+  --font-body: "Avenir Next", "Segoe UI", sans-serif;
+}
