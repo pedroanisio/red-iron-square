@@ -31,6 +31,13 @@ uv run pytest -q
 uv run red-iron-square --help
 ```
 
+To use the optional HTTP transport:
+
+```bash
+uv sync --extra api
+uv run uvicorn src.api.app:create_app --factory --reload
+```
+
 ## Python SDK Example
 
 ```python
@@ -116,3 +123,27 @@ uv run red-iron-square simulate \
 ```
 
 The example payloads above are included in [backend/examples](/home/admin/spikes/red-iron-square/backend/examples).
+
+## HTTP API
+
+The FastAPI transport lives under [backend/src/api](/home/admin/spikes/red-iron-square/backend/src/api). It is intentionally thin and delegates all business logic to `AgentSDK`.
+
+Available endpoints:
+- `GET /health`
+- `POST /decide`
+- `POST /simulate`
+
+Example decision request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/decide \
+  -H 'content-type: application/json' \
+  -d '{
+    "personality": {"O":0.8,"C":0.5,"E":0.3,"A":0.7,"N":0.4,"R":0.9,"I":0.6,"T":0.2},
+    "scenario": {"name":"pitch_meeting","values":{"O":0.9,"N":0.7}},
+    "actions": [
+      {"name":"bold","modifiers":{"O":1.0,"R":0.8,"N":-0.3}},
+      {"name":"safe","modifiers":{"C":0.9,"T":0.8}}
+    ]
+  }'
+```

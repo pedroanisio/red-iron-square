@@ -1,17 +1,17 @@
 """Self-model: the agent's internal estimate of its own personality."""
 
-from typing import Optional, Sequence
 from collections import deque
+from collections.abc import Sequence
 
 import numpy as np
 
-from src.shared.validators import validate_unit_interval
-from src.shared.logging import get_logger
-from src.personality.dimensions import DimensionRegistry
-from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
-from src.temporal.state import AgentState
+from src.personality.dimensions import DimensionRegistry
+from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.self_model.params import SelfModelParams
+from src.shared.logging import get_logger
+from src.shared.validators import validate_unit_interval
+from src.temporal.state import AgentState
 
 _log = get_logger(module="self_model.model")
 
@@ -106,7 +106,9 @@ class SelfModel:
         """Full self-model update cycle: evidence -> psi_hat revision."""
         p = self.params
 
-        fingerprint = self._compute_behavioral_fingerprint(action_probs, action_modifiers)
+        fingerprint = self._compute_behavioral_fingerprint(
+            action_probs, action_modifiers,
+        )
         self._update_evidence(fingerprint)
 
         evidence_pull = p.learning_rate * (self._B - self._psi_hat)
@@ -144,7 +146,7 @@ class SelfModel:
         actions: Sequence[Action],
         engine: DecisionEngine,
         temperature: float = 1.0,
-        state: Optional[AgentState] = None,
+        state: AgentState | None = None,
     ) -> np.ndarray:
         """
         Predict action distribution using psi_hat, with optional state modulation.
@@ -161,7 +163,10 @@ class SelfModel:
             temperature = temperature * (1.0 + 0.3 * max(0, -state.mood))
 
         utilities = np.array([
-            engine.utility(psi_hat_pv, scenario, a, activations_override=raw_activations)
+            engine.utility(
+                psi_hat_pv, scenario, a,
+                activations_override=raw_activations,
+            )
             for a in actions
         ])
 

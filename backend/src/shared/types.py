@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
-from typing import Optional, TYPE_CHECKING
 
 from src.shared.validators import validate_unit_interval
 
@@ -22,9 +23,9 @@ class DimensionVector:
     def __init__(
         self,
         *,
-        values: Optional[dict[str, float]] = None,
-        array: Optional[np.ndarray] = None,
-        registry: "DimensionRegistry",
+        values: dict[str, float] | None = None,
+        array: np.ndarray | None = None,
+        registry: DimensionRegistry,
     ) -> None:
         if values is not None and array is not None:
             raise ValueError("Provide either `values` or `array`, not both.")
@@ -57,7 +58,7 @@ class DimensionVector:
         return self._array.copy()
 
     @property
-    def registry(self) -> "DimensionRegistry":
+    def registry(self) -> DimensionRegistry:
         """The dimension registry this vector is aligned to."""
         return self._registry
 

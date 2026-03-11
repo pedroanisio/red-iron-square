@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import PersonalityVector
-from src.self_model.params import SelfModelParams
 from src.self_model.model import SelfModel
+from src.self_model.params import SelfModelParams
 
 
 class SelfEmotionLabel(Enum):

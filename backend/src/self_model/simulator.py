@@ -1,16 +1,17 @@
 """Self-aware simulator: extends TemporalSimulator with self-model hooks."""
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
-from src.personality.vectors import PersonalityVector, Scenario, Action
+
 from src.personality.decision import DecisionEngine
-from src.temporal.state import AgentState
-from src.temporal.simulator import TickResult, TemporalSimulator
-from src.shared.logging import get_logger
-from src.self_model.params import SelfModelParams
+from src.personality.vectors import Action, PersonalityVector, Scenario
+from src.self_model.emotions import SelfEmotionDetector, SelfEmotionReading
 from src.self_model.model import SelfModel
-from src.self_model.emotions import SelfEmotionReading, SelfEmotionDetector
+from src.self_model.params import SelfModelParams
+from src.shared.logging import get_logger
+from src.temporal.simulator import TemporalSimulator, TickResult
+from src.temporal.state import AgentState
 
 _log = get_logger(module="self_model.simulator")
 
@@ -45,10 +46,10 @@ class SelfAwareSimulator(TemporalSimulator):
         engine: DecisionEngine,
         *,
         self_model_params: SelfModelParams = SelfModelParams(),
-        initial_state: Optional[AgentState] = None,
+        initial_state: AgentState | None = None,
         memory_size: int = 500,
         temperature: float = 1.0,
-        rng: Optional[np.random.Generator] = None,
+        rng: np.random.Generator | None = None,
     ) -> None:
         super().__init__(
             personality, actions, engine,
@@ -63,7 +64,7 @@ class SelfAwareSimulator(TemporalSimulator):
         self.self_emotion_detector = SelfEmotionDetector(params=self_model_params)
 
     def tick(
-        self, scenario: Scenario, outcome: Optional[float] = None,
+        self, scenario: Scenario, outcome: float | None = None,
     ) -> SelfAwareTickResult:
         """One tick with self-model integration."""
         true_psi = self.personality.to_array()

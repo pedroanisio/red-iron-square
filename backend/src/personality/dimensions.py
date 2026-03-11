@@ -1,7 +1,8 @@
 """Dimension definitions and registry for personality/scenario vectors."""
 
+from collections.abc import Sequence
+
 from pydantic import BaseModel, ConfigDict
-from typing import Sequence
 
 
 class Dimension(BaseModel):
@@ -15,14 +16,38 @@ class Dimension(BaseModel):
 
 
 DEFAULT_DIMENSIONS: tuple[Dimension, ...] = (
-    Dimension(key="O", name="Openness", description="Receptivity to novel experience and creative stimuli."),
-    Dimension(key="C", name="Conscientiousness", description="Preference for structure, planning, and order."),
-    Dimension(key="E", name="Extraversion", description="Energy gain/drain from social interaction."),
-    Dimension(key="A", name="Agreeableness", description="Preference for cooperation over competition."),
-    Dimension(key="N", name="Neuroticism", description="Sensitivity to stress (high N = fragile under stress)."),
-    Dimension(key="R", name="Resilience", description="Capacity to mobilize or endure under adversity."),
-    Dimension(key="I", name="Idealism", description="Priority of ideal outcomes over pragmatic ones."),
-    Dimension(key="T", name="Tradition", description="Preference for tradition-aligned over novel approaches."),
+    Dimension(
+        key="O", name="Openness",
+        description="Receptivity to novel experience and creative stimuli.",
+    ),
+    Dimension(
+        key="C", name="Conscientiousness",
+        description="Preference for structure, planning, and order.",
+    ),
+    Dimension(
+        key="E", name="Extraversion",
+        description="Energy gain/drain from social interaction.",
+    ),
+    Dimension(
+        key="A", name="Agreeableness",
+        description="Preference for cooperation over competition.",
+    ),
+    Dimension(
+        key="N", name="Neuroticism",
+        description="Sensitivity to stress (high N = fragile under stress).",
+    ),
+    Dimension(
+        key="R", name="Resilience",
+        description="Capacity to mobilize or endure under adversity.",
+    ),
+    Dimension(
+        key="I", name="Idealism",
+        description="Priority of ideal outcomes over pragmatic ones.",
+    ),
+    Dimension(
+        key="T", name="Tradition",
+        description="Preference for tradition-aligned over novel approaches.",
+    ),
 )
 
 

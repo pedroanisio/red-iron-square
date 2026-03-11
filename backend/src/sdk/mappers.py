@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from src.personality.dimensions import DimensionRegistry
-from src.personality.vectors import Action, Scenario
+from src.personality.vectors import Action
 from src.self_model.simulator import SelfAwareTickResult
 from src.temporal.emotions import EmotionReading
 from src.temporal.simulator import TickResult

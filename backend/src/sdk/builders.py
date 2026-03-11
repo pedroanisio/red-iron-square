@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 
@@ -57,7 +57,10 @@ def build_action(
                 f"{key}={value} is outside the required [-1, 1] interval."
             )
         dense[registry.index(key)] = value
-    return Action(name=name, description=description, modifiers=dense, registry=registry)
+    return Action(
+        name=name, description=description,
+        modifiers=dense, registry=registry,
+    )
 
 
 def build_initial_self_model(

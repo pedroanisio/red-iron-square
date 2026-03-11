@@ -1,18 +1,17 @@
 """Temporal simulator: the main tick loop integrating state, memory, and emotions."""
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
-from src.personality.dimensions import DimensionRegistry
-from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
+from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.shared.logging import get_logger
-from src.temporal.state import AgentState, StateTransitionParams, update_state
-from src.temporal.memory import MemoryBank, MemoryEntry
-from src.temporal.emotions import EmotionReading, EmotionThresholds
 from src.temporal.affective_engine import AffectiveEngine
+from src.temporal.emotions import EmotionReading, EmotionThresholds
+from src.temporal.memory import MemoryBank, MemoryEntry
+from src.temporal.state import AgentState, StateTransitionParams, update_state
 
 _log = get_logger(module="temporal.simulator")
 
@@ -57,12 +56,12 @@ class TemporalSimulator:
         actions: Sequence[Action],
         engine: DecisionEngine,
         *,
-        initial_state: Optional[AgentState] = None,
+        initial_state: AgentState | None = None,
         state_params: StateTransitionParams = StateTransitionParams(),
         emotion_thresholds: EmotionThresholds = EmotionThresholds(),
         memory_size: int = 500,
         temperature: float = 1.0,
-        rng: Optional[np.random.Generator] = None,
+        rng: np.random.Generator | None = None,
     ) -> None:
         self.personality = personality
         self.actions = list(actions)
@@ -87,7 +86,7 @@ class TemporalSimulator:
         return self.temperature * (1.0 + 0.3 * max(0, -self.state.mood))
 
     def _resolve_outcome(
-        self, outcome: Optional[float], activations: np.ndarray,
+        self, outcome: float | None, activations: np.ndarray,
         chosen_action: Action, scenario: Scenario,
     ) -> float:
         """Use provided outcome or stochastic model."""
@@ -146,7 +145,7 @@ class TemporalSimulator:
         )
         self.memory.store(entry)
 
-    def tick(self, scenario: Scenario, outcome: Optional[float] = None) -> TickResult:
+    def tick(self, scenario: Scenario, outcome: float | None = None) -> TickResult:
         """Execute one simulation tick."""
         state_before = self.state.snapshot()
         activations = self._compute_modulated_activations(scenario)

@@ -1,13 +1,13 @@
 """Decision engine: utility computation and Boltzmann action selection."""
 
-from typing import Optional, Callable, Sequence
+from collections.abc import Callable, Sequence
 
 import numpy as np
 
-from src.personality.dimensions import DimensionRegistry
-from src.personality.vectors import PersonalityVector, Scenario, Action
-from src.personality.hyperparameters import HyperParameters, ResilienceMode
 from src.personality.activations import DEFAULT_ACTIVATION_REGISTRY
+from src.personality.dimensions import DimensionRegistry
+from src.personality.hyperparameters import HyperParameters, ResilienceMode
+from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.shared.logging import get_logger
 
 _log = get_logger(module="personality.decision")
@@ -25,7 +25,7 @@ class DecisionEngine:
     def __init__(
         self,
         registry: DimensionRegistry = DimensionRegistry(),
-        activation_registry: Optional[dict[str, Callable[..., float]]] = None,
+        activation_registry: dict[str, Callable[..., float]] | None = None,
         hyperparameters: HyperParameters = HyperParameters(),
         resilience_mode: ResilienceMode = ResilienceMode.ACTIVATION,
     ) -> None:
@@ -69,7 +69,7 @@ class DecisionEngine:
         scenario: Scenario,
         action: Action,
         bias: float = 0.0,
-        activations_override: Optional[np.ndarray] = None,
+        activations_override: np.ndarray | None = None,
     ) -> float:
         """U(psi, s, a) = bias + activations dot modifiers."""
         if activations_override is not None:
@@ -85,8 +85,8 @@ class DecisionEngine:
         actions: Sequence[Action],
         temperature: float = 1.0,
         bias: float = 0.0,
-        rng: Optional[np.random.Generator] = None,
-        activations_override: Optional[np.ndarray] = None,
+        rng: np.random.Generator | None = None,
+        activations_override: np.ndarray | None = None,
     ) -> tuple[Action, np.ndarray]:
         """Boltzmann (softmax) action selection. Returns (chosen_action, probs)."""
         if temperature <= 0:
@@ -132,7 +132,10 @@ def compute_activation_batch(
     psi = np.asarray(personalities)
     s = np.asarray(scenarios)
     if psi.shape != s.shape or psi.ndim != 2:
-        raise ValueError(f"Shape mismatch: personalities {psi.shape} vs scenarios {s.shape}")
+        raise ValueError(
+            f"Shape mismatch: personalities {psi.shape} "
+            f"vs scenarios {s.shape}"
+        )
 
     n_dim = psi.shape[1]
     act = np.zeros_like(psi)

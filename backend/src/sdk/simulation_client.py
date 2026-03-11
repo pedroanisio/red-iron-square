@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DimensionRegistry

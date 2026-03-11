@@ -1,6 +1,6 @@
 """Activation functions mapping (stimulus, trait) -> [0, 1]."""
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
@@ -24,10 +24,13 @@ class ActivationFunctions:
         return float(trait * np.tanh(hp.alpha * stimulus))
 
     @staticmethod
-    def f_conscientiousness(stimulus: float, trait: float, hp: HyperParameters) -> float:
+    def f_conscientiousness(
+        stimulus: float, trait: float, hp: HyperParameters,
+    ) -> float:
         """f_C(s, C) = sigma(beta * (2C-1) * (s - theta)).  Bipolar sigmoid."""
         t_centered = 2.0 * trait - 1.0
-        return float(1.0 / (1.0 + np.exp(-hp.beta * t_centered * (stimulus - hp.c_threshold))))
+        exponent = -hp.beta * t_centered * (stimulus - hp.c_threshold)
+        return float(1.0 / (1.0 + np.exp(exponent)))
 
     @staticmethod
     def f_extraversion(stimulus: float, trait: float, hp: HyperParameters) -> float:
@@ -36,7 +39,9 @@ class ActivationFunctions:
         return float(1.0 / (1.0 + np.exp(-hp.gamma * t_centered * (stimulus - 0.5))))
 
     @staticmethod
-    def _f_linear_interpolation(stimulus: float, trait: float, _hp: HyperParameters) -> float:
+    def _f_linear_interpolation(
+        stimulus: float, trait: float, _hp: HyperParameters,
+    ) -> float:
         """
         f(s, T) = T*s + (1-T)*(1-s).
 

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -33,9 +34,10 @@ def _build_actions(sdk: AgentSDK, payload: list[dict[str, Any]]) -> list[Any]:
 
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common JSON input arguments shared by commands."""
-    parser.add_argument("--personality", required=True, help="JSON object or @file path.")
-    parser.add_argument("--scenario", required=True, help="JSON object or @file path.")
-    parser.add_argument("--actions", required=True, help="JSON array or @file path.")
+    _json_help = "JSON object or @file path."
+    parser.add_argument("--personality", required=True, help=_json_help)
+    parser.add_argument("--scenario", required=True, help=_json_help)
+    parser.add_argument("--actions", required=True, help=_json_help)
     parser.add_argument("--temperature", type=float, default=1.0)
 
 
@@ -78,7 +80,8 @@ def _handle_simulate(args: argparse.Namespace) -> int:
 
     trace: BaseModel
     if args.self_model:
-        initial_self_model = sdk.initial_self_model(_load_json_argument(args.self_model))
+        sm_payload = _load_json_argument(args.self_model)
+        initial_self_model = sdk.initial_self_model(sm_payload)
         sa_simulator = sdk.self_aware_simulator(
             personality,
             initial_self_model,
@@ -107,10 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     decide_parser.set_defaults(handler=_handle_decide)
 
     simulate_parser = subparsers.add_parser("simulate", help="Run a simulation trace.")
-    simulate_parser.add_argument("--personality", required=True, help="JSON object or @file path.")
-    simulate_parser.add_argument("--actions", required=True, help="JSON array or @file path.")
-    simulate_parser.add_argument("--scenarios", required=True, help="JSON array or @file path.")
-    simulate_parser.add_argument("--outcomes", help="JSON array or @file path.")
+    _json_h = "JSON object or @file path."
+    simulate_parser.add_argument("--personality", required=True, help=_json_h)
+    simulate_parser.add_argument("--actions", required=True, help=_json_h)
+    simulate_parser.add_argument("--scenarios", required=True, help=_json_h)
+    simulate_parser.add_argument("--outcomes", help=_json_h)
     simulate_parser.add_argument(
         "--self-model",
         help="JSON object or @file path for self-aware simulation.",

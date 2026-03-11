@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import numpy as np
-from typing import Optional
 
-from src.shared.types import DimensionVector
 from src.personality.dimensions import DimensionRegistry
+from src.shared.types import DimensionVector
 
 
 class PersonalityVector(DimensionVector):
@@ -31,8 +30,8 @@ class Scenario(DimensionVector):
     def __init__(
         self,
         *,
-        values: Optional[dict[str, float]] = None,
-        array: Optional[np.ndarray] = None,
+        values: dict[str, float] | None = None,
+        array: np.ndarray | None = None,
         registry: DimensionRegistry = DimensionRegistry(),
         name: str = "",
         description: str = "",

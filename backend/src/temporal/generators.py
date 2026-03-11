@@ -1,6 +1,5 @@
 """Scenario and outcome sequence generators for simulation patterns."""
 
-from typing import Optional
 
 import numpy as np
 
@@ -12,7 +11,7 @@ def generate_scenario_sequence(
     registry: DimensionRegistry,
     n_ticks: int,
     pattern: str = "crisis_recovery",
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> list[Scenario]:
     """
     Generate a sequence of scenarios for simulation.
@@ -37,7 +36,7 @@ def generate_scenario_sequence(
 
 def _compute_base_stimuli(
     pattern: str, frac: float, n: int,
-    stress_idx: Optional[int], rng: np.random.Generator,
+    stress_idx: int | None, rng: np.random.Generator,
 ) -> np.ndarray:
     """Compute raw stimulus array for a given pattern and time fraction."""
     if pattern == "stable":
@@ -75,7 +74,7 @@ def _compute_base_stimuli(
 def generate_outcome_sequence(
     n_ticks: int,
     pattern: str = "crisis_recovery",
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> list[float]:
     """Generate outcome values in [-1, 1] matching a scenario pattern."""
     rng = rng or np.random.default_rng()

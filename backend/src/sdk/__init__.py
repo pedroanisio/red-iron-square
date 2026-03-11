@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 
@@ -47,12 +47,12 @@ class AgentSDK:
         )
 
     @classmethod
-    def default(cls) -> "AgentSDK":
+    def default(cls) -> AgentSDK:
         """Create the default OCEAN+RIT SDK."""
         return cls()
 
     @classmethod
-    def from_dimensions(cls, dimensions: Sequence[Dimension]) -> "AgentSDK":
+    def from_dimensions(cls, dimensions: Sequence[Dimension]) -> AgentSDK:
         """Create an SDK for a custom dimension registry."""
         return cls(registry=build_registry(dimensions))
 

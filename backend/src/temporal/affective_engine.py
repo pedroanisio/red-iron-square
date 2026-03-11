@@ -5,9 +5,9 @@ import numpy as np
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import PersonalityVector
 from src.shared.logging import get_logger
-from src.temporal.state import AgentState
-from src.temporal.memory import MemoryBank
 from src.temporal.emotions import EmotionLabel, EmotionReading, EmotionThresholds
+from src.temporal.memory import MemoryBank
+from src.temporal.state import AgentState
 
 _log = get_logger(module="temporal.affective_engine")
 

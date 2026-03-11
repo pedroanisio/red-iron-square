@@ -3,8 +3,8 @@
 import numpy as np
 from pydantic import BaseModel, model_validator
 
-from src.shared.validators import validate_unit_interval, validate_real
 from src.personality.vectors import PersonalityVector, Scenario
+from src.shared.validators import validate_real, validate_unit_interval
 
 
 class AgentState(BaseModel):

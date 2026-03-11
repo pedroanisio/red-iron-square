@@ -1,7 +1,8 @@
 """Tunable hyperparameters and enums for activation functions."""
 
-from pydantic import BaseModel, model_validator
 from enum import Enum
+
+from pydantic import BaseModel, model_validator
 
 from src.shared.validators import validate_real
 
