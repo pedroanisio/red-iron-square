@@ -17,35 +17,43 @@ class Dimension(BaseModel):
 
 DEFAULT_DIMENSIONS: tuple[Dimension, ...] = (
     Dimension(
-        key="O", name="Openness",
+        key="O",
+        name="Openness",
         description="Receptivity to novel experience and creative stimuli.",
     ),
     Dimension(
-        key="C", name="Conscientiousness",
+        key="C",
+        name="Conscientiousness",
         description="Preference for structure, planning, and order.",
     ),
     Dimension(
-        key="E", name="Extraversion",
+        key="E",
+        name="Extraversion",
         description="Energy gain/drain from social interaction.",
     ),
     Dimension(
-        key="A", name="Agreeableness",
+        key="A",
+        name="Agreeableness",
         description="Preference for cooperation over competition.",
     ),
     Dimension(
-        key="N", name="Neuroticism",
+        key="N",
+        name="Neuroticism",
         description="Sensitivity to stress (high N = fragile under stress).",
     ),
     Dimension(
-        key="R", name="Resilience",
+        key="R",
+        name="Resilience",
         description="Capacity to mobilize or endure under adversity.",
     ),
     Dimension(
-        key="I", name="Idealism",
+        key="I",
+        name="Idealism",
         description="Priority of ideal outcomes over pragmatic ones.",
     ),
     Dimension(
-        key="T", name="Tradition",
+        key="T",
+        name="Tradition",
         description="Preference for tradition-aligned over novel approaches.",
     ),
 )

@@ -7,9 +7,16 @@ from src.personality.hyperparameters import HyperParameters, ResilienceMode
 from src.personality.vectors import Action, PersonalityVector, Scenario
 
 __all__ = [
-    "Dimension", "DimensionRegistry", "DEFAULT_DIMENSIONS",
-    "PersonalityVector", "Scenario", "Action",
-    "HyperParameters", "ResilienceMode",
-    "ActivationFunctions", "DEFAULT_ACTIVATION_REGISTRY",
-    "DecisionEngine", "compute_activation_batch",
+    "Dimension",
+    "DimensionRegistry",
+    "DEFAULT_DIMENSIONS",
+    "PersonalityVector",
+    "Scenario",
+    "Action",
+    "HyperParameters",
+    "ResilienceMode",
+    "ActivationFunctions",
+    "DEFAULT_ACTIVATION_REGISTRY",
+    "DecisionEngine",
+    "compute_activation_batch",
 ]

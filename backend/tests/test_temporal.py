@@ -2,16 +2,18 @@
 
 import numpy as np
 import pytest
-
-from src.personality.dimensions import DimensionRegistry
-from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
-from src.temporal.state import AgentState, StateTransitionParams, update_state
-from src.temporal.memory import MemoryEntry, MemoryBank
-from src.temporal.emotions import EmotionLabel, EmotionReading, EmotionThresholds
+from src.personality.dimensions import DimensionRegistry
+from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.temporal.affective_engine import AffectiveEngine
-from src.temporal.simulator import TickResult, TemporalSimulator
-from src.temporal.generators import generate_scenario_sequence, generate_outcome_sequence
+from src.temporal.emotions import EmotionLabel, EmotionReading
+from src.temporal.generators import (
+    generate_outcome_sequence,
+    generate_scenario_sequence,
+)
+from src.temporal.memory import MemoryBank, MemoryEntry
+from src.temporal.simulator import TemporalSimulator, TickResult
+from src.temporal.state import AgentState, StateTransitionParams, update_state
 
 
 class TestAgentState:
@@ -60,32 +62,50 @@ class TestUpdateState:
     def setup_method(self) -> None:
         self.reg = DimensionRegistry()
         self.psi = PersonalityVector(
-            values={"O": 0.5, "C": 0.5, "E": 0.5, "A": 0.5,
-                    "N": 0.5, "R": 0.5, "I": 0.5, "T": 0.5},
+            values={
+                "O": 0.5,
+                "C": 0.5,
+                "E": 0.5,
+                "A": 0.5,
+                "N": 0.5,
+                "R": 0.5,
+                "I": 0.5,
+                "T": 0.5,
+            },
             registry=self.reg,
         )
         self.scenario = Scenario(
-            values={"N": 0.5}, registry=self.reg, name="test",
+            values={"N": 0.5},
+            registry=self.reg,
+            name="test",
         )
 
     def test_positive_outcome_improves_mood(self) -> None:
         state = AgentState(mood=0.0)
-        new = update_state(state, outcome=0.8, personality=self.psi, scenario=self.scenario)
+        new = update_state(
+            state, outcome=0.8, personality=self.psi, scenario=self.scenario
+        )
         assert new.mood > 0.0
 
     def test_negative_outcome_worsens_mood(self) -> None:
         state = AgentState(mood=0.0)
-        new = update_state(state, outcome=-0.8, personality=self.psi, scenario=self.scenario)
+        new = update_state(
+            state, outcome=-0.8, personality=self.psi, scenario=self.scenario
+        )
         assert new.mood < 0.0
 
     def test_negative_outcome_increases_frustration(self) -> None:
         state = AgentState(frustration=0.0)
-        new = update_state(state, outcome=-0.8, personality=self.psi, scenario=self.scenario)
+        new = update_state(
+            state, outcome=-0.8, personality=self.psi, scenario=self.scenario
+        )
         assert new.frustration > 0.0
 
     def test_state_stays_in_bounds(self) -> None:
         state = AgentState(mood=-0.9, energy=0.1, frustration=0.9)
-        new = update_state(state, outcome=-1.0, personality=self.psi, scenario=self.scenario)
+        new = update_state(
+            state, outcome=-1.0, personality=self.psi, scenario=self.scenario
+        )
         assert -1.0 <= new.mood <= 1.0
         assert 0.0 <= new.energy <= 1.0
         assert 0.0 <= new.frustration <= 1.0
@@ -94,11 +114,17 @@ class TestUpdateState:
 class TestMemoryBank:
     """Tests for MemoryBank."""
 
-    def _make_entry(self, tick: int, outcome: float, valence: float = 0.0) -> MemoryEntry:
+    def _make_entry(
+        self, tick: int, outcome: float, valence: float = 0.0
+    ) -> MemoryEntry:
         return MemoryEntry(
-            tick=tick, scenario_name="s", action_name="a",
-            outcome=outcome, counterfactual=0.0,
-            state_snapshot=AgentState(), valence=valence,
+            tick=tick,
+            scenario_name="s",
+            action_name="a",
+            outcome=outcome,
+            counterfactual=0.0,
+            state_snapshot=AgentState(),
+            valence=valence,
         )
 
     def test_store_and_len(self) -> None:
@@ -130,9 +156,13 @@ class TestMemoryBank:
     def test_total_regret(self) -> None:
         bank = MemoryBank()
         entry = MemoryEntry(
-            tick=0, scenario_name="s", action_name="a",
-            outcome=0.0, counterfactual=0.5,
-            state_snapshot=AgentState(), valence=0.0,
+            tick=0,
+            scenario_name="s",
+            action_name="a",
+            outcome=0.0,
+            counterfactual=0.5,
+            state_snapshot=AgentState(),
+            valence=0.0,
         )
         bank.store(entry)
         assert bank.total_regret(10) == pytest.approx(0.5)
@@ -157,8 +187,16 @@ class TestAffectiveEngine:
     def setup_method(self) -> None:
         self.reg = DimensionRegistry()
         self.psi = PersonalityVector(
-            values={"O": 0.8, "C": 0.5, "E": 0.5, "A": 0.5,
-                    "N": 0.7, "R": 0.5, "I": 0.5, "T": 0.5},
+            values={
+                "O": 0.8,
+                "C": 0.5,
+                "E": 0.5,
+                "A": 0.5,
+                "N": 0.7,
+                "R": 0.5,
+                "I": 0.5,
+                "T": 0.5,
+            },
             registry=self.reg,
         )
         self.engine = AffectiveEngine()
@@ -195,24 +233,44 @@ class TestTemporalSimulator:
         self.reg = DimensionRegistry()
         self.engine = DecisionEngine(registry=self.reg)
         self.psi = PersonalityVector(
-            values={"O": 0.8, "C": 0.5, "E": 0.3, "A": 0.7,
-                    "N": 0.5, "R": 0.9, "I": 0.7, "T": 0.3},
+            values={
+                "O": 0.8,
+                "C": 0.5,
+                "E": 0.3,
+                "A": 0.7,
+                "N": 0.5,
+                "R": 0.9,
+                "I": 0.7,
+                "T": 0.3,
+            },
             registry=self.reg,
         )
         self.actions = [
-            Action("bold", "bold", modifiers=np.array([1, -0.5, 0.5, 0.3, -0.3, 0.8, 0.7, -0.5]),
-                   registry=self.reg),
-            Action("safe", "safe", modifiers=np.array([0.2, 0.9, 0.1, 0.5, 0.5, 0.1, 0.2, 0.8]),
-                   registry=self.reg),
+            Action(
+                "bold",
+                "bold",
+                modifiers=np.array([1, -0.5, 0.5, 0.3, -0.3, 0.8, 0.7, -0.5]),
+                registry=self.reg,
+            ),
+            Action(
+                "safe",
+                "safe",
+                modifiers=np.array([0.2, 0.9, 0.1, 0.5, 0.5, 0.1, 0.2, 0.8]),
+                registry=self.reg,
+            ),
         ]
 
     def test_single_tick(self) -> None:
         sim = TemporalSimulator(
-            self.psi, self.actions, self.engine,
+            self.psi,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(
-            values={"O": 0.5, "N": 0.3}, registry=self.reg, name="t0",
+            values={"O": 0.5, "N": 0.3},
+            registry=self.reg,
+            name="t0",
         )
         result = sim.tick(scenario, outcome=0.5)
         assert isinstance(result, TickResult)
@@ -222,7 +280,9 @@ class TestTemporalSimulator:
 
     def test_tick_counter_increments(self) -> None:
         sim = TemporalSimulator(
-            self.psi, self.actions, self.engine,
+            self.psi,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(values={"O": 0.5}, registry=self.reg, name="t")
@@ -232,12 +292,16 @@ class TestTemporalSimulator:
 
     def test_state_evolves(self) -> None:
         sim = TemporalSimulator(
-            self.psi, self.actions, self.engine,
+            self.psi,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         initial_energy = sim.current_state.energy
         scenario = Scenario(
-            values={"O": 0.9, "N": 0.9}, registry=self.reg, name="stress",
+            values={"O": 0.9, "N": 0.9},
+            registry=self.reg,
+            name="stress",
         )
         for _ in range(10):
             sim.tick(scenario, outcome=-0.5)
@@ -245,7 +309,9 @@ class TestTemporalSimulator:
 
     def test_memory_grows(self) -> None:
         sim = TemporalSimulator(
-            self.psi, self.actions, self.engine,
+            self.psi,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(values={"O": 0.5}, registry=self.reg, name="t")
@@ -255,7 +321,9 @@ class TestTemporalSimulator:
 
     def test_stochastic_outcome(self) -> None:
         sim = TemporalSimulator(
-            self.psi, self.actions, self.engine,
+            self.psi,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(values={"O": 0.5}, registry=self.reg, name="t")

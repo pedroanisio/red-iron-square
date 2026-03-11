@@ -52,25 +52,35 @@ class SelfAwareSimulator(TemporalSimulator):
         rng: np.random.Generator | None = None,
     ) -> None:
         super().__init__(
-            personality, actions, engine,
+            personality,
+            actions,
+            engine,
             initial_state=initial_state,
             memory_size=memory_size,
             temperature=temperature,
             rng=rng,
         )
         self.self_model = SelfModel(
-            initial_self_model, self.registry, params=self_model_params,
+            initial_self_model,
+            self.registry,
+            params=self_model_params,
         )
         self.self_emotion_detector = SelfEmotionDetector(params=self_model_params)
 
     def tick(
-        self, scenario: Scenario, outcome: float | None = None,
+        self,
+        scenario: Scenario,
+        outcome: float | None = None,
     ) -> SelfAwareTickResult:
         """One tick with self-model integration."""
         true_psi = self.personality.to_array()
 
         predicted_probs = self.self_model.predict_action_distribution(
-            scenario, self.actions, self.engine, self.temperature, state=self.state,
+            scenario,
+            self.actions,
+            self.engine,
+            self.temperature,
+            state=self.state,
         )
 
         base: TickResult = super().tick(scenario, outcome)
@@ -79,13 +89,17 @@ class SelfAwareSimulator(TemporalSimulator):
         sm_metrics = self.self_model.update(base.probabilities, modifier_list)
 
         pred_error = self.self_model.compute_prediction_error(
-            base.probabilities, predicted_probs,
+            base.probabilities,
+            predicted_probs,
         )
         self_accuracy = self.self_model.compute_self_accuracy(true_psi)
 
         self_emotions = self.self_emotion_detector.detect_all(
-            self.self_model, pred_error, base.outcome,
-            self.personality, self.registry,
+            self.self_model,
+            pred_error,
+            base.outcome,
+            self.personality,
+            self.registry,
         )
 
         _log.debug(
@@ -96,14 +110,21 @@ class SelfAwareSimulator(TemporalSimulator):
         )
 
         return SelfAwareTickResult(
-            tick=base.tick, scenario=base.scenario, action=base.action,
-            outcome=base.outcome, state_before=base.state_before,
-            state_after=base.state_after, activations=base.activations,
-            emotions=base.emotions, self_emotions=self_emotions,
-            probabilities=base.probabilities, psi_hat=self.self_model.psi_hat,
+            tick=base.tick,
+            scenario=base.scenario,
+            action=base.action,
+            outcome=base.outcome,
+            state_before=base.state_before,
+            state_after=base.state_after,
+            activations=base.activations,
+            emotions=base.emotions,
+            self_emotions=self_emotions,
+            probabilities=base.probabilities,
+            psi_hat=self.self_model.psi_hat,
             behavioral_evidence=self.self_model.behavioral_evidence,
             self_coherence=sm_metrics["self_coherence"],
             self_accuracy=self_accuracy,
             identity_drift=sm_metrics["identity_drift"],
-            prediction_error=pred_error, predicted_probs=predicted_probs,
+            prediction_error=pred_error,
+            predicted_probs=predicted_probs,
         )

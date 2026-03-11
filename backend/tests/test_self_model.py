@@ -2,19 +2,17 @@
 
 import numpy as np
 import pytest
-
-from src.personality.dimensions import DimensionRegistry
-from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
-from src.temporal.state import AgentState
-from src.self_model.params import SelfModelParams
-from src.self_model.model import SelfModel
+from src.personality.dimensions import DimensionRegistry
+from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.self_model.emotions import (
-    SelfEmotionLabel,
-    SelfEmotionReading,
     SelfEmotionDetector,
+    SelfEmotionLabel,
 )
+from src.self_model.model import SelfModel
+from src.self_model.params import SelfModelParams
 from src.self_model.simulator import SelfAwareSimulator, SelfAwareTickResult
+from src.temporal.state import AgentState
 
 
 class TestSelfModelParams:
@@ -109,7 +107,9 @@ class TestSelfModelPrediction:
 
     def test_predict_returns_distribution(self) -> None:
         probs = self.sm.predict_action_distribution(
-            self.scenario, self.actions, self.engine,
+            self.scenario,
+            self.actions,
+            self.engine,
         )
         assert probs.shape == (2,)
         assert probs.sum() == pytest.approx(1.0)
@@ -117,7 +117,10 @@ class TestSelfModelPrediction:
     def test_state_aware_prediction(self) -> None:
         state = AgentState(mood=-0.5, energy=0.3)
         probs = self.sm.predict_action_distribution(
-            self.scenario, self.actions, self.engine, state=state,
+            self.scenario,
+            self.actions,
+            self.engine,
+            state=state,
         )
         assert probs.shape == (2,)
         assert probs.sum() == pytest.approx(1.0)
@@ -148,8 +151,16 @@ class TestSelfEmotionDetector:
     def setup_method(self) -> None:
         self.reg = DimensionRegistry()
         self.psi = PersonalityVector(
-            values={"O": 0.5, "C": 0.5, "E": 0.5, "A": 0.5,
-                    "N": 0.7, "R": 0.5, "I": 0.5, "T": 0.5},
+            values={
+                "O": 0.5,
+                "C": 0.5,
+                "E": 0.5,
+                "A": 0.5,
+                "N": 0.7,
+                "R": 0.5,
+                "I": 0.5,
+                "T": 0.5,
+            },
             registry=self.reg,
         )
         self.sm = SelfModel(np.full(8, 0.5), self.reg)
@@ -177,21 +188,40 @@ class TestSelfAwareSimulator:
         self.reg = DimensionRegistry()
         self.engine = DecisionEngine(registry=self.reg)
         self.psi = PersonalityVector(
-            values={"O": 0.8, "C": 0.5, "E": 0.3, "A": 0.7,
-                    "N": 0.5, "R": 0.9, "I": 0.7, "T": 0.3},
+            values={
+                "O": 0.8,
+                "C": 0.5,
+                "E": 0.3,
+                "A": 0.7,
+                "N": 0.5,
+                "R": 0.9,
+                "I": 0.7,
+                "T": 0.3,
+            },
             registry=self.reg,
         )
         self.actions = [
-            Action("bold", "bold", modifiers=np.array([1, -0.5, 0.5, 0.3, -0.3, 0.8, 0.7, -0.5]),
-                   registry=self.reg),
-            Action("safe", "safe", modifiers=np.array([0.2, 0.9, 0.1, 0.5, 0.5, 0.1, 0.2, 0.8]),
-                   registry=self.reg),
+            Action(
+                "bold",
+                "bold",
+                modifiers=np.array([1, -0.5, 0.5, 0.3, -0.3, 0.8, 0.7, -0.5]),
+                registry=self.reg,
+            ),
+            Action(
+                "safe",
+                "safe",
+                modifiers=np.array([0.2, 0.9, 0.1, 0.5, 0.5, 0.1, 0.2, 0.8]),
+                registry=self.reg,
+            ),
         ]
         self.init_sm = np.array([0.7, 0.5, 0.4, 0.6, 0.5, 0.8, 0.6, 0.3])
 
     def test_tick_returns_self_aware_result(self) -> None:
         sim = SelfAwareSimulator(
-            self.psi, self.init_sm, self.actions, self.engine,
+            self.psi,
+            self.init_sm,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(values={"O": 0.5}, registry=self.reg, name="t")
@@ -203,7 +233,10 @@ class TestSelfAwareSimulator:
 
     def test_multi_tick_self_model_evolves(self) -> None:
         sim = SelfAwareSimulator(
-            self.psi, self.init_sm, self.actions, self.engine,
+            self.psi,
+            self.init_sm,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(values={"O": 0.9, "N": 0.8}, registry=self.reg, name="s")
@@ -214,7 +247,10 @@ class TestSelfAwareSimulator:
 
     def test_self_emotions_are_detected(self) -> None:
         sim = SelfAwareSimulator(
-            self.psi, self.init_sm, self.actions, self.engine,
+            self.psi,
+            self.init_sm,
+            self.actions,
+            self.engine,
             rng=np.random.default_rng(42),
         )
         scenario = Scenario(values={"O": 0.5}, registry=self.reg, name="t")

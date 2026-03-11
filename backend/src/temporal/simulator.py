@@ -86,27 +86,38 @@ class TemporalSimulator:
         return self.temperature * (1.0 + 0.3 * max(0, -self.state.mood))
 
     def _resolve_outcome(
-        self, outcome: float | None, activations: np.ndarray,
-        chosen_action: Action, scenario: Scenario,
+        self,
+        outcome: float | None,
+        activations: np.ndarray,
+        chosen_action: Action,
+        scenario: Scenario,
     ) -> float:
         """Use provided outcome or stochastic model."""
         if outcome is not None:
             return outcome
         u = self.engine.utility(
-            self.personality, scenario, chosen_action,
+            self.personality,
+            scenario,
+            chosen_action,
             activations_override=activations,
         )
         return float(np.clip(self.rng.normal(0.2 * u, 0.3), -1.0, 1.0))
 
     def _compute_counterfactual(
-        self, activations: np.ndarray, chosen_action: Action, scenario: Scenario,
+        self,
+        activations: np.ndarray,
+        chosen_action: Action,
+        scenario: Scenario,
     ) -> float:
         """Best unchosen utility minus chosen utility."""
-        utilities = np.array([
-            self.engine.utility(self.personality, scenario, a,
-                                activations_override=activations)
-            for a in self.actions
-        ])
+        utilities = np.array(
+            [
+                self.engine.utility(
+                    self.personality, scenario, a, activations_override=activations
+                )
+                for a in self.actions
+            ]
+        )
         chosen_idx = next(
             i for i, a in enumerate(self.actions) if a.name == chosen_action.name
         )
@@ -116,7 +127,9 @@ class TemporalSimulator:
         return float(max(unchosen) - utilities[chosen_idx])
 
     def _determine_is_still_acting(
-        self, chosen_action: Action, new_state: AgentState,
+        self,
+        chosen_action: Action,
+        new_state: AgentState,
     ) -> bool:
         """False if agent withdrew, energy depleted, or frustration maxed."""
         if chosen_action.name == self.WITHDRAW_ACTION_NAME:
@@ -133,15 +146,24 @@ class TemporalSimulator:
         return float(np.linalg.norm(action.modifiers))
 
     def _store_memory(
-        self, tick: int, state_before: AgentState, scenario: Scenario,
-        chosen_action: Action, outcome: float, counterfactual: float,
+        self,
+        tick: int,
+        state_before: AgentState,
+        scenario: Scenario,
+        chosen_action: Action,
+        outcome: float,
+        counterfactual: float,
     ) -> None:
         """Create and store a memory entry."""
         valence = float(np.clip(outcome * 0.6 + state_before.mood * 0.4, -1, 1))
         entry = MemoryEntry(
-            tick=tick, scenario_name=scenario.name, action_name=chosen_action.name,
-            outcome=outcome, counterfactual=counterfactual,
-            state_snapshot=state_before, valence=valence,
+            tick=tick,
+            scenario_name=scenario.name,
+            action_name=chosen_action.name,
+            outcome=outcome,
+            counterfactual=counterfactual,
+            state_snapshot=state_before,
+            valence=valence,
         )
         self.memory.store(entry)
 
@@ -152,29 +174,53 @@ class TemporalSimulator:
         temperature = self._compute_effective_temperature()
 
         chosen_action, probs = self.engine.decide(
-            self.personality, scenario, self.actions,
-            temperature=temperature, rng=self.rng,
+            self.personality,
+            scenario,
+            self.actions,
+            temperature=temperature,
+            rng=self.rng,
             activations_override=activations,
         )
 
-        resolved_outcome = self._resolve_outcome(outcome, activations, chosen_action, scenario)
-        counterfactual = self._compute_counterfactual(activations, chosen_action, scenario)
+        resolved_outcome = self._resolve_outcome(
+            outcome,
+            activations,
+            chosen_action,
+            scenario,
+        )
+        counterfactual = self._compute_counterfactual(
+            activations,
+            chosen_action,
+            scenario,
+        )
 
         action_effort = self._compute_action_effort(chosen_action)
         new_state = update_state(
-            self.state, resolved_outcome, self.personality, scenario,
-            self.state_params, action_effort=action_effort,
+            self.state,
+            resolved_outcome,
+            self.personality,
+            scenario,
+            self.state_params,
+            action_effort=action_effort,
         )
         is_acting = self._determine_is_still_acting(chosen_action, new_state)
 
         self._store_memory(
-            self._tick_counter, state_before, scenario,
-            chosen_action, resolved_outcome, counterfactual,
+            self._tick_counter,
+            state_before,
+            scenario,
+            chosen_action,
+            resolved_outcome,
+            counterfactual,
         )
 
         emotions = self.affect.detect_all(
-            activations, new_state, self.personality, self.memory,
-            self.registry, is_still_acting=is_acting,
+            activations,
+            new_state,
+            self.personality,
+            self.memory,
+            self.registry,
+            is_still_acting=is_acting,
         )
 
         self.state = new_state
@@ -201,9 +247,15 @@ class TemporalSimulator:
         )
 
         return TickResult(
-            tick=self._tick_counter - 1, scenario=scenario, action=chosen_action,
-            outcome=resolved_outcome, state_before=state_before, state_after=new_state,
-            activations=activations, emotions=emotions, probabilities=probs,
+            tick=self._tick_counter - 1,
+            scenario=scenario,
+            action=chosen_action,
+            outcome=resolved_outcome,
+            state_before=state_before,
+            state_after=new_state,
+            activations=activations,
+            emotions=emotions,
+            probabilities=probs,
         )
 
     @property

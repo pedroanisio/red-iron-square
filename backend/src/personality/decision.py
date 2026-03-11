@@ -33,7 +33,8 @@ class DecisionEngine:
         self.hp = hyperparameters
         self.resilience_mode = resilience_mode
         self.activations = activation_registry or {
-            k: v for k, v in DEFAULT_ACTIVATION_REGISTRY.items()
+            k: v
+            for k, v in DEFAULT_ACTIVATION_REGISTRY.items()
             if k in set(registry.keys)
         }
 
@@ -96,11 +97,18 @@ class DecisionEngine:
 
         rng = rng or np.random.default_rng()
 
-        utilities = np.array([
-            self.utility(personality, scenario, a, bias=bias,
-                         activations_override=activations_override)
-            for a in actions
-        ])
+        utilities = np.array(
+            [
+                self.utility(
+                    personality,
+                    scenario,
+                    a,
+                    bias=bias,
+                    activations_override=activations_override,
+                )
+                for a in actions
+            ]
+        )
 
         logits = utilities / temperature
         logits -= logits.max()
@@ -133,8 +141,7 @@ def compute_activation_batch(
     s = np.asarray(scenarios)
     if psi.shape != s.shape or psi.ndim != 2:
         raise ValueError(
-            f"Shape mismatch: personalities {psi.shape} "
-            f"vs scenarios {s.shape}"
+            f"Shape mismatch: personalities {psi.shape} vs scenarios {s.shape}"
         )
 
     n_dim = psi.shape[1]

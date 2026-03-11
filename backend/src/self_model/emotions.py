@@ -1,4 +1,8 @@
-"""Self-related emotion detection: pride, shame, authenticity, identity threat/crisis."""
+"""
+Self-related emotion detection.
+
+Covers pride, shame, authenticity, identity threat/crisis.
+"""
 
 from enum import Enum
 
@@ -60,29 +64,38 @@ class SelfEmotionDetector:
         ]
         return [r for r in readings if r.intensity >= 0.10]
 
-    def _detect_pride(self, prediction_error: float, outcome: float) -> SelfEmotionReading:
+    def _detect_pride(
+        self, prediction_error: float, outcome: float
+    ) -> SelfEmotionReading:
         """Action consistent with self-concept and succeeded."""
         accuracy = max(0, 1.0 - prediction_error)
         intensity = float(np.clip(accuracy * max(0, outcome), 0, 1))
         return SelfEmotionReading(
-            label=SelfEmotionLabel.PRIDE, intensity=intensity,
+            label=SelfEmotionLabel.PRIDE,
+            intensity=intensity,
             description="Action consistent with self-concept and succeeded.",
         )
 
     def _detect_shame(
-        self, prediction_error: float, self_model: SelfModel,
-        personality: PersonalityVector, registry: DimensionRegistry,
+        self,
+        prediction_error: float,
+        self_model: SelfModel,
+        personality: PersonalityVector,
+        registry: DimensionRegistry,
     ) -> SelfEmotionReading:
         """Behavior violated self-concept; self-discrepancy."""
         p = self.params
         N = personality["N"] if "N" in registry.keys else 0.5
         coherence_gap = self_model.current_coherence_gap()
         n_amplifier = 1.0 + p.N_shame_amplification * N
-        intensity = float(np.clip(
-            prediction_error * coherence_gap * p.shame_scaling * n_amplifier, 0, 1
-        ))
+        intensity = float(
+            np.clip(
+                prediction_error * coherence_gap * p.shame_scaling * n_amplifier, 0, 1
+            )
+        )
         return SelfEmotionReading(
-            label=SelfEmotionLabel.SHAME, intensity=intensity,
+            label=SelfEmotionLabel.SHAME,
+            intensity=intensity,
             description="Behavior violated self-concept; self-discrepancy.",
         )
 
@@ -92,7 +105,8 @@ class SelfEmotionDetector:
         gap = self_model.current_coherence_gap()
         intensity = float(np.clip(1.0 - gap / threshold, 0, 1))
         return SelfEmotionReading(
-            label=SelfEmotionLabel.AUTHENTICITY, intensity=intensity,
+            label=SelfEmotionLabel.AUTHENTICITY,
+            intensity=intensity,
             description="Self-concept aligns with behavioral evidence.",
         )
 
@@ -100,16 +114,20 @@ class SelfEmotionDetector:
         """Sustained evidence contradicts self-concept."""
         if not self_model.sustained_coherence_threat():
             return SelfEmotionReading(
-                label=SelfEmotionLabel.IDENTITY_THREAT, intensity=0.0,
+                label=SelfEmotionLabel.IDENTITY_THREAT,
+                intensity=0.0,
                 description="No sustained coherence threat.",
             )
         p = self_model.params
         history = self_model.coherence_history
-        recent = history[-p.coherence_threat_window:]
-        mean_excess = np.mean([max(0, g - p.coherence_threat_threshold) for g in recent])
+        recent = history[-p.coherence_threat_window :]
+        mean_excess = np.mean(
+            [max(0, g - p.coherence_threat_threshold) for g in recent]
+        )
         intensity = float(np.clip(mean_excess * 5.0, 0, 1))
         return SelfEmotionReading(
-            label=SelfEmotionLabel.IDENTITY_THREAT, intensity=intensity,
+            label=SelfEmotionLabel.IDENTITY_THREAT,
+            intensity=intensity,
             description="Sustained evidence contradicts self-concept.",
         )
 
@@ -119,13 +137,19 @@ class SelfEmotionDetector:
         drift = self_model.current_identity_drift()
         if drift < p.drift_crisis_threshold:
             return SelfEmotionReading(
-                label=SelfEmotionLabel.IDENTITY_CRISIS, intensity=0.0,
+                label=SelfEmotionLabel.IDENTITY_CRISIS,
+                intensity=0.0,
                 description="Self-model stable relative to anchor.",
             )
-        intensity = float(np.clip(
-            (drift - p.drift_crisis_threshold) / (1.0 - p.drift_crisis_threshold), 0, 1,
-        ))
+        intensity = float(
+            np.clip(
+                (drift - p.drift_crisis_threshold) / (1.0 - p.drift_crisis_threshold),
+                0,
+                1,
+            )
+        )
         return SelfEmotionReading(
-            label=SelfEmotionLabel.IDENTITY_CRISIS, intensity=intensity,
+            label=SelfEmotionLabel.IDENTITY_CRISIS,
+            intensity=intensity,
             description="Self-concept has drifted far from original identity.",
         )

@@ -25,7 +25,9 @@ class ActivationFunctions:
 
     @staticmethod
     def f_conscientiousness(
-        stimulus: float, trait: float, hp: HyperParameters,
+        stimulus: float,
+        trait: float,
+        hp: HyperParameters,
     ) -> float:
         """f_C(s, C) = sigma(beta * (2C-1) * (s - theta)).  Bipolar sigmoid."""
         t_centered = 2.0 * trait - 1.0
@@ -40,7 +42,9 @@ class ActivationFunctions:
 
     @staticmethod
     def _f_linear_interpolation(
-        stimulus: float, trait: float, _hp: HyperParameters,
+        stimulus: float,
+        trait: float,
+        _hp: HyperParameters,
     ) -> float:
         """
         f(s, T) = T*s + (1-T)*(1-s).
@@ -57,7 +61,7 @@ class ActivationFunctions:
     @staticmethod
     def f_neuroticism(stimulus: float, trait: float, hp: HyperParameters) -> float:
         """f_N(s, N) = exp(-delta * N * s^2).  Gaussian decay under stress."""
-        return float(np.exp(-hp.delta * trait * stimulus ** 2))
+        return float(np.exp(-hp.delta * trait * stimulus**2))
 
     @staticmethod
     def f_resilience(

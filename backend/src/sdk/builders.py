@@ -53,13 +53,13 @@ def build_action(
     dense = np.zeros(registry.size)
     for key, value in modifiers.items():
         if not (-1.0 <= value <= 1.0):
-            raise ValueError(
-                f"{key}={value} is outside the required [-1, 1] interval."
-            )
+            raise ValueError(f"{key}={value} is outside the required [-1, 1] interval.")
         dense[registry.index(key)] = value
     return Action(
-        name=name, description=description,
-        modifiers=dense, registry=registry,
+        name=name,
+        description=description,
+        modifiers=dense,
+        registry=registry,
     )
 
 

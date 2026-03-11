@@ -15,10 +15,7 @@ from src.temporal.simulator import TickResult
 
 def vector_to_dict(values: np.ndarray, registry: DimensionRegistry) -> dict[str, float]:
     """Convert a registry-aligned vector to a JSON-safe dict."""
-    return {
-        key: float(values[i])
-        for i, key in enumerate(registry.keys)
-    }
+    return {key: float(values[i]) for i, key in enumerate(registry.keys)}
 
 
 def probabilities_to_dict(
@@ -26,10 +23,7 @@ def probabilities_to_dict(
     probabilities: np.ndarray,
 ) -> dict[str, float]:
     """Map action names to probabilities."""
-    return {
-        action.name: float(probabilities[i])
-        for i, action in enumerate(actions)
-    }
+    return {action.name: float(probabilities[i]) for i, action in enumerate(actions)}
 
 
 def action_list_to_names(actions: list[Action]) -> list[str]:
@@ -95,7 +89,9 @@ def self_aware_tick_result_to_payload(
             "self_accuracy": float(result.self_accuracy),
             "identity_drift": float(result.identity_drift),
             "prediction_error": float(result.prediction_error),
-            "predicted_probabilities": [float(value) for value in result.predicted_probs.tolist()],
+            "predicted_probabilities": [
+                float(value) for value in result.predicted_probs.tolist()
+            ],
         }
     )
     return payload

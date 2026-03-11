@@ -2,10 +2,9 @@
 
 import numpy as np
 import pytest
-
-from src.shared.validators import validate_unit_interval, validate_real
-from src.shared.types import DimensionVector
 from src.personality.dimensions import DimensionRegistry
+from src.shared.types import DimensionVector
+from src.shared.validators import validate_real, validate_unit_interval
 
 
 class TestValidateUnitInterval:

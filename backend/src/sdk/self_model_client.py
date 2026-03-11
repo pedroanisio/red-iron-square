@@ -36,10 +36,18 @@ class SelfModelSimulationClient:
             **simulator_kwargs,
         )
 
-    def tick(self, scenario: Scenario, outcome: float | None = None) -> SelfAwareTickRecord:
+    def tick(
+        self,
+        scenario: Scenario,
+        outcome: float | None = None,
+    ) -> SelfAwareTickRecord:
         """Run one self-aware tick."""
         result = self.simulator.tick(scenario, outcome=outcome)
-        return SelfAwareTickRecord(**self_aware_tick_result_to_payload(result, self.registry))
+        payload = self_aware_tick_result_to_payload(
+            result,
+            self.registry,
+        )
+        return SelfAwareTickRecord(**payload)
 
     def run(
         self,
@@ -47,7 +55,9 @@ class SelfModelSimulationClient:
         outcomes: Sequence[float | None] | None = None,
     ) -> SelfAwareSimulationTrace:
         """Run a self-aware scenario sequence and collect JSON-safe records."""
-        outcome_list = list(outcomes) if outcomes is not None else [None] * len(scenarios)
+        outcome_list = (
+            list(outcomes) if outcomes is not None else [None] * len(scenarios)
+        )
         if len(outcome_list) != len(scenarios):
             raise ValueError("Length of `outcomes` must match length of `scenarios`.")
         ticks = [

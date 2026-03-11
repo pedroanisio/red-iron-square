@@ -4,7 +4,6 @@ import json
 
 import numpy as np
 import pytest
-
 from src.sdk import AgentSDK
 
 
@@ -53,7 +52,9 @@ class TestAgentSDK:
         payload = result.model_dump()
         json.dumps(payload)
         assert result.chosen_action in {"bold", "safe"}
-        assert payload["probabilities"]["bold"] + payload["probabilities"]["safe"] == pytest.approx(1.0)
+        assert payload["probabilities"]["bold"] + payload["probabilities"][
+            "safe"
+        ] == pytest.approx(1.0)
         assert set(payload["activations"].keys()) == set(self.sdk.registry.keys)
 
     def test_temporal_simulator_run_returns_trace(self) -> None:

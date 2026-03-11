@@ -65,6 +65,5 @@ class DimensionVector:
     def _format_pairs(self) -> str:
         """Format key=value pairs for repr."""
         return ", ".join(
-            f"{k}={self._array[i]:.2f}"
-            for i, k in enumerate(self._registry.keys)
+            f"{k}={self._array[i]:.2f}" for i, k in enumerate(self._registry.keys)
         )

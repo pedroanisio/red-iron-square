@@ -92,7 +92,7 @@ class SelfModel:
         p = self.params
         if len(self._coherence_history) < p.coherence_threat_window:
             return False
-        recent = list(self._coherence_history)[-p.coherence_threat_window:]
+        recent = list(self._coherence_history)[-p.coherence_threat_window :]
         return all(g > p.coherence_threat_threshold for g in recent)
 
     def compute_self_accuracy(self, true_psi: np.ndarray) -> float:
@@ -101,13 +101,16 @@ class SelfModel:
         return float(np.linalg.norm(self._psi_hat - true_psi) / np.sqrt(n))
 
     def update(
-        self, action_probs: np.ndarray, action_modifiers: list[np.ndarray],
+        self,
+        action_probs: np.ndarray,
+        action_modifiers: list[np.ndarray],
     ) -> dict[str, float]:
         """Full self-model update cycle: evidence -> psi_hat revision."""
         p = self.params
 
         fingerprint = self._compute_behavioral_fingerprint(
-            action_probs, action_modifiers,
+            action_probs,
+            action_modifiers,
         )
         self._update_evidence(fingerprint)
 
@@ -162,13 +165,17 @@ class SelfModel:
             raw_activations = raw_activations * energy_factor
             temperature = temperature * (1.0 + 0.3 * max(0, -state.mood))
 
-        utilities = np.array([
-            engine.utility(
-                psi_hat_pv, scenario, a,
-                activations_override=raw_activations,
-            )
-            for a in actions
-        ])
+        utilities = np.array(
+            [
+                engine.utility(
+                    psi_hat_pv,
+                    scenario,
+                    a,
+                    activations_override=raw_activations,
+                )
+                for a in actions
+            ]
+        )
 
         logits = utilities / max(temperature, 1e-8)
         logits -= logits.max()
@@ -177,7 +184,9 @@ class SelfModel:
         return probs
 
     def compute_prediction_error(
-        self, actual_probs: np.ndarray, predicted_probs: np.ndarray,
+        self,
+        actual_probs: np.ndarray,
+        predicted_probs: np.ndarray,
     ) -> float:
         """H(q, p_hat) normalized to [0, 1]."""
         eps = 1e-10
@@ -187,7 +196,9 @@ class SelfModel:
         return float(np.clip(cross_entropy / max(max_entropy, eps), 0.0, 1.0))
 
     def _compute_behavioral_fingerprint(
-        self, action_probs: np.ndarray, action_modifiers: list[np.ndarray],
+        self,
+        action_probs: np.ndarray,
+        action_modifiers: list[np.ndarray],
     ) -> np.ndarray:
         """Probability-weighted average of action modifiers, through sigmoid."""
         m_bar = np.zeros(self._registry.size)

@@ -6,6 +6,14 @@ disclaimer: "No information in this document should be taken for granted. Any st
 
 `red-iron-square` is a Python simulation library for personality-driven agents. The current public surface is the SDK under [src/sdk](/home/admin/spikes/red-iron-square/backend/src/sdk).
 
+## Current State
+
+The backend now ships with:
+- a stable SDK facade via `src.sdk.AgentSDK`
+- a packaged CLI via `red-iron-square`
+- a thin FastAPI transport under `src.api`
+- runnable JSON examples under [backend/examples](/home/admin/spikes/red-iron-square/backend/examples)
+
 ## Public API Boundary
 
 Use `src.sdk.AgentSDK` as the stable entrypoint for external consumers.
@@ -13,6 +21,7 @@ Use `src.sdk.AgentSDK` as the stable entrypoint for external consumers.
 Public modules:
 - `src.sdk`
 - `src.sdk.cli`
+- `src.api`
 
 Internal modules:
 - `src.personality`
@@ -27,14 +36,14 @@ The internal modules remain the domain implementation. They are available for ad
 From [backend](/home/admin/spikes/red-iron-square/backend):
 
 ```bash
+uv sync
 uv run pytest -q
 uv run red-iron-square --help
 ```
 
-To use the optional HTTP transport:
+To run the HTTP transport:
 
 ```bash
-uv sync --extra api
 uv run uvicorn src.api.app:create_app --factory --reload
 ```
 
@@ -133,6 +142,12 @@ Available endpoints:
 - `POST /decide`
 - `POST /simulate`
 
+Example health check:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
 Example decision request:
 
 ```bash
@@ -147,3 +162,5 @@ curl -X POST http://127.0.0.1:8000/decide \
     ]
   }'
 ```
+
+The current backend test status is `108 passed` under `uv run pytest -q`.

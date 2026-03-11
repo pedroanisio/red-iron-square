@@ -32,7 +32,9 @@ def configure_logging(*, json_output: bool | None = None) -> None:
         return
 
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-    use_json = json_output if json_output is not None else os.getenv("LOG_FORMAT") == "json"
+    use_json = (
+        json_output if json_output is not None else os.getenv("LOG_FORMAT") == "json"
+    )
 
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,

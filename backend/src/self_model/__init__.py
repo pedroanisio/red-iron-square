@@ -10,7 +10,11 @@ from src.self_model.params import SelfModelParams
 from src.self_model.simulator import SelfAwareSimulator, SelfAwareTickResult
 
 __all__ = [
-    "SelfModelParams", "SelfModel",
-    "SelfEmotionLabel", "SelfEmotionReading", "SelfEmotionDetector",
-    "SelfAwareTickResult", "SelfAwareSimulator",
+    "SelfModelParams",
+    "SelfModel",
+    "SelfEmotionLabel",
+    "SelfEmotionReading",
+    "SelfEmotionDetector",
+    "SelfAwareTickResult",
+    "SelfAwareSimulator",
 ]

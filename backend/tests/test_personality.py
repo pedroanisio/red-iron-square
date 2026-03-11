@@ -2,12 +2,11 @@
 
 import numpy as np
 import pytest
-
-from src.personality.dimensions import Dimension, DimensionRegistry, DEFAULT_DIMENSIONS
-from src.personality.vectors import PersonalityVector, Scenario, Action
-from src.personality.hyperparameters import HyperParameters, ResilienceMode
-from src.personality.activations import ActivationFunctions, DEFAULT_ACTIVATION_REGISTRY
+from src.personality.activations import DEFAULT_ACTIVATION_REGISTRY, ActivationFunctions
 from src.personality.decision import DecisionEngine, compute_activation_batch
+from src.personality.dimensions import DEFAULT_DIMENSIONS, Dimension, DimensionRegistry
+from src.personality.hyperparameters import HyperParameters, ResilienceMode
+from src.personality.vectors import Action, PersonalityVector, Scenario
 
 
 class TestDimension:
@@ -32,7 +31,10 @@ class TestDimension:
         assert reg.index("T") == 7
 
     def test_registry_duplicate_keys_raises(self) -> None:
-        dup = [Dimension(key="X", name="A", description=""), Dimension(key="X", name="B", description="")]
+        dup = [
+            Dimension(key="X", name="A", description=""),
+            Dimension(key="X", name="B", description=""),
+        ]
         with pytest.raises(ValueError, match="Duplicate"):
             DimensionRegistry(dup)
 
@@ -131,7 +133,9 @@ class TestActivationFunctions:
 
     def test_resilience_activation_mode(self) -> None:
         hp = HyperParameters()
-        val = ActivationFunctions.f_resilience(0.9, 0.9, hp, mode=ResilienceMode.ACTIVATION)
+        val = ActivationFunctions.f_resilience(
+            0.9, 0.9, hp, mode=ResilienceMode.ACTIVATION
+        )
         assert 0.0 <= val <= 1.0
 
     def test_resilience_buffer_mode(self) -> None:
@@ -152,20 +156,45 @@ class TestDecisionEngine:
         self.reg = DimensionRegistry()
         self.engine = DecisionEngine(registry=self.reg)
         self.psi = PersonalityVector(
-            values={"O": 0.8, "C": 0.5, "E": 0.3, "A": 0.7,
-                    "N": 0.6, "R": 0.9, "I": 0.7, "T": 0.3},
+            values={
+                "O": 0.8,
+                "C": 0.5,
+                "E": 0.3,
+                "A": 0.7,
+                "N": 0.6,
+                "R": 0.9,
+                "I": 0.7,
+                "T": 0.3,
+            },
             registry=self.reg,
         )
         self.scenario = Scenario(
-            values={"O": 0.9, "C": 0.2, "E": 0.7, "A": 0.5,
-                    "N": 0.8, "R": 0.9, "I": 0.6, "T": 0.3},
-            registry=self.reg, name="test",
+            values={
+                "O": 0.9,
+                "C": 0.2,
+                "E": 0.7,
+                "A": 0.5,
+                "N": 0.8,
+                "R": 0.9,
+                "I": 0.6,
+                "T": 0.3,
+            },
+            registry=self.reg,
+            name="test",
         )
         self.actions = [
-            Action("bold", "bold", modifiers=np.array([1, -0.5, 0.5, 0.3, -0.3, 0.8, 0.7, -0.5]),
-                   registry=self.reg),
-            Action("safe", "safe", modifiers=np.array([0.2, 0.9, 0.1, 0.5, 0.5, 0.1, 0.2, 0.8]),
-                   registry=self.reg),
+            Action(
+                "bold",
+                "bold",
+                modifiers=np.array([1, -0.5, 0.5, 0.3, -0.3, 0.8, 0.7, -0.5]),
+                registry=self.reg,
+            ),
+            Action(
+                "safe",
+                "safe",
+                modifiers=np.array([0.2, 0.9, 0.1, 0.5, 0.5, 0.1, 0.2, 0.8]),
+                registry=self.reg,
+            ),
         ]
 
     def test_activations_in_unit_range(self) -> None:
@@ -179,15 +208,20 @@ class TestDecisionEngine:
 
     def test_utility_with_override(self) -> None:
         overrides = np.full(8, 0.5)
-        u = self.engine.utility(self.psi, self.scenario, self.actions[0],
-                                activations_override=overrides)
+        u = self.engine.utility(
+            self.psi, self.scenario, self.actions[0], activations_override=overrides
+        )
         expected = float(np.dot(overrides, self.actions[0].modifiers))
         assert u == pytest.approx(expected)
 
     def test_decide_returns_action_and_probs(self) -> None:
         rng = np.random.default_rng(42)
         action, probs = self.engine.decide(
-            self.psi, self.scenario, self.actions, temperature=1.0, rng=rng,
+            self.psi,
+            self.scenario,
+            self.actions,
+            temperature=1.0,
+            rng=rng,
         )
         assert action in self.actions
         assert probs.shape == (2,)
@@ -203,7 +237,9 @@ class TestDecisionEngine:
 
     def test_missing_activation_raises(self) -> None:
         with pytest.raises(ValueError, match="No activation"):
-            DecisionEngine(registry=self.reg, activation_registry={"O": lambda s, t, h: 0})
+            DecisionEngine(
+                registry=self.reg, activation_registry={"O": lambda s, t, h: 0}
+            )
 
 
 class TestComputeActivationBatch:

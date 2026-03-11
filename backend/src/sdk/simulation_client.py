@@ -43,7 +43,9 @@ class TemporalSimulationClient:
         outcomes: Sequence[float | None] | None = None,
     ) -> SimulationTrace:
         """Run a scenario sequence and collect JSON-safe records."""
-        outcome_list = list(outcomes) if outcomes is not None else [None] * len(scenarios)
+        outcome_list = (
+            list(outcomes) if outcomes is not None else [None] * len(scenarios)
+        )
         if len(outcome_list) != len(scenarios):
             raise ValueError("Length of `outcomes` must match length of `scenarios`.")
         ticks = [

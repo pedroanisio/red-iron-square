@@ -34,20 +34,26 @@ class AgentState(BaseModel):
 
     def to_array(self) -> np.ndarray:
         """Return state as [mood, arousal, energy, satisfaction, frustration]."""
-        return np.array([self.mood, self.arousal, self.energy,
-                         self.satisfaction, self.frustration])
+        return np.array(
+            [self.mood, self.arousal, self.energy, self.satisfaction, self.frustration]
+        )
 
     def snapshot(self) -> "AgentState":
         """Return an independent copy of the current state."""
         return AgentState(
-            mood=self.mood, arousal=self.arousal, energy=self.energy,
-            satisfaction=self.satisfaction, frustration=self.frustration,
+            mood=self.mood,
+            arousal=self.arousal,
+            energy=self.energy,
+            satisfaction=self.satisfaction,
+            frustration=self.frustration,
         )
 
     def __repr__(self) -> str:
-        return (f"State(mood={self.mood:+.2f}, arousal={self.arousal:.2f}, "
-                f"energy={self.energy:.2f}, sat={self.satisfaction:.2f}, "
-                f"frust={self.frustration:.2f})")
+        return (
+            f"State(mood={self.mood:+.2f}, arousal={self.arousal:.2f}, "
+            f"energy={self.energy:.2f}, sat={self.satisfaction:.2f}, "
+            f"frust={self.frustration:.2f})"
+        )
 
 
 class StateTransitionParams(BaseModel):
@@ -110,7 +116,9 @@ def update_state(
     energy = state.energy * p.energy_decay + (1 - p.energy_decay) * resting_energy
     energy -= p.energy_cost_per_effort * action_effort + p.energy_cost_stress * stress
 
-    satisfaction = state.satisfaction * p.satisfaction_decay + (1 - p.satisfaction_decay) * 0.5
+    satisfaction = (
+        state.satisfaction * p.satisfaction_decay + (1 - p.satisfaction_decay) * 0.5
+    )
     if outcome > 0:
         satisfaction += outcome * p.outcome_satisfaction
 

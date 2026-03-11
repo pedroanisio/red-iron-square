@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel
+
 from src.api.schemas import ActionInput, DecisionRequest, SimulationRequest
 from src.sdk import AgentSDK
 
@@ -70,19 +72,26 @@ def create_app() -> Any:
             for scenario in request.scenarios
         ]
         if request.self_model is None:
-            simulator = sdk.simulator(
+            client = sdk.simulator(
                 personality,
                 actions,
                 temperature=request.temperature,
             )
+            trace: BaseModel = client.run(
+                scenarios,
+                outcomes=request.outcomes,
+            )
         else:
-            simulator = sdk.self_aware_simulator(
+            sa_client = sdk.self_aware_simulator(
                 personality,
                 sdk.initial_self_model(request.self_model),
                 actions,
                 temperature=request.temperature,
             )
-        result = simulator.run(scenarios, outcomes=request.outcomes)
-        return {"data": result.model_dump()}
+            trace = sa_client.run(
+                scenarios,
+                outcomes=request.outcomes,
+            )
+        return {"data": trace.model_dump()}
 
     return app

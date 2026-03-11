@@ -1,0 +1,47 @@
+repos:
+  # ── Gate 1: Formatting ─────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff-format
+        name: "ruff format"
+        args: []
+        files: ^backend/
+
+      - id: ruff
+        name: "ruff lint"
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/
+
+  # ── Gate 2: Type checking ──────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: mypy
+        name: "mypy strict"
+        entry: bash -c 'source .venv/bin/activate && cd backend && mypy src/'
+        language: system
+        types: [python]
+        files: ^backend/src/
+        pass_filenames: false
+
+  # ── Gate 3: Tests + coverage ───────────────────────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: "pytest (coverage >= 80%)"
+        entry: bash -c 'source .venv/bin/activate && cd backend && python -m pytest tests/ --cov=src --cov-fail-under=80 -q'
+        language: system
+        types: [python]
+        files: ^backend/
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # ── Gate 4: LOC limit ──────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: loc-limit
+        name: "source files <= 300 LOC"
+        entry: bash scripts/check_loc.sh
+        language: system
+        files: ^backend/src/
+        pass_filenames: false

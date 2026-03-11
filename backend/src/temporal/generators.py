@@ -1,6 +1,5 @@
 """Scenario and outcome sequence generators for simulation patterns."""
 
-
 import numpy as np
 
 from src.personality.dimensions import DimensionRegistry
@@ -27,16 +26,23 @@ def generate_scenario_sequence(
         frac = t / max(1, n_ticks - 1)
         base = _compute_base_stimuli(pattern, frac, n, stress_idx, rng)
         base = np.clip(base, 0, 1)
-        scenarios.append(Scenario(
-            array=base, registry=registry, name=f"tick_{t}_{pattern}",
-        ))
+        scenarios.append(
+            Scenario(
+                array=base,
+                registry=registry,
+                name=f"tick_{t}_{pattern}",
+            )
+        )
 
     return scenarios
 
 
 def _compute_base_stimuli(
-    pattern: str, frac: float, n: int,
-    stress_idx: int | None, rng: np.random.Generator,
+    pattern: str,
+    frac: float,
+    n: int,
+    stress_idx: int | None,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """Compute raw stimulus array for a given pattern and time fraction."""
     if pattern == "stable":

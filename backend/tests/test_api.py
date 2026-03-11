@@ -7,7 +7,7 @@ import pytest
 fastapi = pytest.importorskip("fastapi")
 testclient = pytest.importorskip("fastapi.testclient")
 
-from src.api import create_app
+from src.api import create_app  # noqa: E402
 
 
 class TestApi:
@@ -48,7 +48,9 @@ class TestApi:
         assert response.status_code == fastapi.status.HTTP_200_OK
         payload = response.json()["data"]
         assert payload["chosen_action"] in {"bold", "safe"}
-        assert payload["probabilities"]["bold"] + payload["probabilities"]["safe"] == pytest.approx(1.0)
+        assert payload["probabilities"]["bold"] + payload["probabilities"][
+            "safe"
+        ] == pytest.approx(1.0)
 
     def test_self_aware_simulate(self) -> None:
         response = self.client.post(
