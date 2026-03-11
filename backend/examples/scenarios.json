@@ -1,0 +1,28 @@
+[
+  {
+    "name": "pitch_meeting",
+    "description": "Moderately novel and stressful social situation.",
+    "values": {
+      "O": 0.9,
+      "N": 0.7
+    }
+  },
+  {
+    "name": "deep_work",
+    "description": "Low-social focused task with moderate structure demands.",
+    "values": {
+      "C": 0.8,
+      "E": 0.2,
+      "N": 0.3
+    }
+  },
+  {
+    "name": "setback",
+    "description": "Stressful recovery moment after a negative event.",
+    "values": {
+      "N": 0.9,
+      "R": 0.8,
+      "C": 0.4
+    }
+  }
+]

@@ -36,9 +36,9 @@ class TestAgentState:
         assert arr[0] == pytest.approx(0.5)
         assert arr[1] == pytest.approx(0.3)
 
-    def test_copy_is_independent(self) -> None:
+    def test_snapshot_is_independent(self) -> None:
         s = AgentState(mood=0.5)
-        s2 = s.copy()
+        s2 = s.snapshot()
         assert s2.mood == pytest.approx(0.5)
 
 

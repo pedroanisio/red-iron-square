@@ -9,6 +9,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 from __future__ import annotations
 
 import os
+import sys
 
 import structlog
 from dotenv import load_dotenv
@@ -52,7 +53,7 @@ def configure_logging(*, json_output: bool | None = None) -> None:
             structlog.processors.NAME_TO_LEVEL[log_level.lower()],
         ),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )
     _CONFIGURED = True
@@ -61,4 +62,5 @@ def configure_logging(*, json_output: bool | None = None) -> None:
 def get_logger(**initial_binds: object) -> structlog.BoundLogger:
     """Return a bound structlog logger with optional initial context."""
     configure_logging()
-    return structlog.get_logger(**initial_binds)
+    logger: structlog.BoundLogger = structlog.get_logger(**initial_binds)
+    return logger

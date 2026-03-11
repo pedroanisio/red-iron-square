@@ -5,3 +5,11 @@ from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.hyperparameters import HyperParameters, ResilienceMode
 from src.personality.activations import ActivationFunctions, DEFAULT_ACTIVATION_REGISTRY
 from src.personality.decision import DecisionEngine, compute_activation_batch
+
+__all__ = [
+    "Dimension", "DimensionRegistry", "DEFAULT_DIMENSIONS",
+    "PersonalityVector", "Scenario", "Action",
+    "HyperParameters", "ResilienceMode",
+    "ActivationFunctions", "DEFAULT_ACTIVATION_REGISTRY",
+    "DecisionEngine", "compute_activation_batch",
+]

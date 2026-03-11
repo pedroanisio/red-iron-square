@@ -1,0 +1,19 @@
+[
+  {
+    "name": "bold",
+    "description": "Favor novelty and pressure tolerance.",
+    "modifiers": {
+      "O": 1.0,
+      "R": 0.8,
+      "N": -0.3
+    }
+  },
+  {
+    "name": "safe",
+    "description": "Favor structure and conventional alignment.",
+    "modifiers": {
+      "C": 0.9,
+      "T": 0.8
+    }
+  }
+]

@@ -3,12 +3,9 @@
 from typing import Optional, Sequence
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
-
 from src.personality.vectors import PersonalityVector, Scenario, Action
 from src.personality.decision import DecisionEngine
 from src.temporal.state import AgentState
-from src.temporal.emotions import EmotionReading
 from src.temporal.simulator import TickResult, TemporalSimulator
 from src.shared.logging import get_logger
 from src.self_model.params import SelfModelParams
@@ -18,21 +15,10 @@ from src.self_model.emotions import SelfEmotionReading, SelfEmotionDetector
 _log = get_logger(module="self_model.simulator")
 
 
-class SelfAwareTickResult(BaseModel):
+class SelfAwareTickResult(TickResult):
     """Extends TickResult with self-model data."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    tick: int
-    scenario: Scenario
-    action: Action
-    outcome: float
-    state_before: AgentState
-    state_after: AgentState
-    activations: np.ndarray
-    emotions: list[EmotionReading]
     self_emotions: list[SelfEmotionReading]
-    probabilities: np.ndarray
     psi_hat: np.ndarray
     behavioral_evidence: np.ndarray
     self_coherence: float

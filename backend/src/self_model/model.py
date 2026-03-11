@@ -168,7 +168,8 @@ class SelfModel:
         logits = utilities / max(temperature, 1e-8)
         logits -= logits.max()
         exp_l = np.exp(logits)
-        return exp_l / exp_l.sum()
+        probs: np.ndarray = exp_l / exp_l.sum()
+        return probs
 
     def compute_prediction_error(
         self, actual_probs: np.ndarray, predicted_probs: np.ndarray,
@@ -187,7 +188,8 @@ class SelfModel:
         m_bar = np.zeros(self._registry.size)
         for prob, mod in zip(action_probs, action_modifiers):
             m_bar += prob * mod
-        return 1.0 / (1.0 + np.exp(-self.params.sigmoid_scale * m_bar))
+        result: np.ndarray = 1.0 / (1.0 + np.exp(-self.params.sigmoid_scale * m_bar))
+        return result
 
     def _update_evidence(self, fingerprint: np.ndarray) -> None:
         """EMA update of behavioral evidence."""
