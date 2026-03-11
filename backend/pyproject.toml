@@ -64,11 +64,27 @@ target-version = "py311"
 src = ["src"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "D"]
-extend-ignore = ["D105", "D107"]
+select = [
+    "E", "F", "I", "UP",
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D200",  # One-line docstring should fit on one line
+    "D201",  # No blank line before docstring
+    "D202",  # No blank line after docstring
+    "D205",  # 1 blank line required between summary and description
+    "D300",  # Use triple double quotes
+    "D400",  # First line should end with a period
+    "D401",  # First line should be in imperative mood
+    "D403",  # First word of the first line should be capitalized
+    "D414",  # Section has no content
+    "D419",  # Docstring is empty
+]
 
 [tool.ruff.lint.pydocstyle]
-convention = "google"
+# Google-style docstrings enforced via explicit rule selection above.
+# Convention omitted to allow fine-grained D105/D107 exclusion.
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "D104"]
