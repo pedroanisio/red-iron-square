@@ -18,6 +18,24 @@ class FakeUiClient:
     def health(self) -> dict[str, str]:
         return {"status": "ok"}
 
+    def list_runs(self) -> list[dict[str, object]]:
+        return [
+            {
+                "run_id": "run-123",
+                "mode": "temporal",
+                "status": "active",
+                "tick_count": 3,
+                "updated_at": "2026-03-11T10:00:00+00:00",
+            },
+            {
+                "run_id": "run-456",
+                "mode": "self_aware",
+                "status": "active",
+                "tick_count": 0,
+                "updated_at": "2026-03-11T09:00:00+00:00",
+            },
+        ]
+
     def create_run(self, payload: dict[str, object]) -> dict[str, object]:
         return {"run_id": "run-123"}
 
@@ -41,8 +59,35 @@ class FakeUiClient:
     def get_trajectory(self, run_id: str) -> dict[str, object]:
         return {
             "run_id": run_id,
-            "tick_count": 1,
-            "ticks": [{"tick": 0, "action": "safe", "outcome": 0.6, "emotions": []}],
+            "tick_count": 2,
+            "ticks": [
+                {
+                    "tick": 0,
+                    "action": "safe",
+                    "outcome": 0.6,
+                    "emotions": [],
+                    "state_after": {
+                        "mood": 0.2,
+                        "arousal": 0.5,
+                        "energy": 0.8,
+                        "satisfaction": 0.4,
+                        "frustration": 0.1,
+                    },
+                },
+                {
+                    "tick": 1,
+                    "action": "bold",
+                    "outcome": -0.3,
+                    "emotions": [],
+                    "state_after": {
+                        "mood": -0.1,
+                        "arousal": 0.7,
+                        "energy": 0.6,
+                        "satisfaction": 0.3,
+                        "frustration": 0.3,
+                    },
+                },
+            ],
             "phases": [],
             "agent_invocations": [
                 {
@@ -95,3 +140,28 @@ def test_index_loads_run_view() -> None:
     assert response.status_code == 200
     assert b"run-123" in response.data
     assert b"AI Calls" in response.data
+
+
+def test_index_shows_run_browser() -> None:
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b"run-123" in response.data
+    assert b"run-456" in response.data
+    assert b"Recent Runs" in response.data
+
+
+def test_index_shows_sparkline_with_trajectory() -> None:
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+
+    assert response.status_code == 200
+    assert b"<svg" in response.data
+    assert b"Trajectory" in response.data

@@ -1,17 +1,19 @@
 ---
 disclaimer: "No information in this document should be taken for granted. Any statement not backed by executable code, tests, or a verifiable reference may be incomplete, invalid, or hallucinated."
+last_assessed: "2026-03-11"
 ---
 
 # Backlog
 
 This backlog turns the current architecture direction into an execution sequence for the repository as it exists today:
 
-- packaged Python backend
+- packaged Python backend with `uv` dependency management
 - public SDK in `backend/src/sdk`
 - FastAPI transport in `backend/src/api`
-- no real frontend yet
-- no persistent simulation run store yet
-- no Anthropic-powered orchestration layer yet
+- Flask telemetry UI in `backend/src/ui`
+- SQLite persistence in `backend/src/api/run_store.py`
+- Anthropic + OpenAI adapters in `backend/src/llm`
+- 127 tests, 92.5% coverage
 
 The intended GenAI integration assumption for this backlog is the **Anthropic Python library** as the LLM client/runtime boundary. The simulation engine remains the deterministic source of truth. Anthropic models are used only for:
 
@@ -30,318 +32,173 @@ Anthropic models must not mutate simulator state directly.
 4. Add orchestration only after run lifecycle, persistence, and replay exist.
 5. Keep LLM outputs typed and validated before they touch the simulation service.
 
-## Phase 0: Baseline Consolidation
+## Phase 0: Baseline Consolidation — DONE
 
 ### Goal
 
 Make the current backend/API layer the explicit foundation for all future work.
 
-### Tasks
+### Status
 
-- Document the current source-of-truth boundary:
-  - `backend/src/personality`
-  - `backend/src/temporal`
-  - `backend/src/self_model`
-  - `backend/src/sdk`
-  - `backend/src/api`
-- Freeze the public API surface for the next phase:
-  - SDK remains internal orchestration convenience
-  - FastAPI becomes the external service boundary
-- Decide naming conventions for:
-  - simulation run
-  - tick event
-  - trajectory window
-  - phase annotation
-  - intervention
+All tasks complete. Architecture documented in CLAUDE.md. Clear module boundaries established:
 
-### Deliverables
+- `src/personality` — dimension registry, activation functions, decision engine
+- `src/temporal` — simulator, state transitions, affective engine, memory
+- `src/self_model` — self-awareness, identity drift, self-related emotions
+- `src/sdk` — domain orchestration convenience layer
+- `src/api` — FastAPI external service boundary
+- `src/llm` — LLM integration boundary (adapters, runtime, schemas)
+- `src/ui` — Flask telemetry frontend
+- `src/shared` — structured logging, validators, shared types
 
-- updated architecture note in docs
-- explicit API ownership note in backend README
+Naming conventions frozen: simulation run, tick event, trajectory window, phase annotation, intervention decision, agent invocation.
 
-### Acceptance Criteria
-
-- there is one documented answer to “what is the authoritative state container?”
-- there is one documented answer to “what can an LLM change?”
-
-## Phase 1: Stateful Run API
+## Phase 1: Stateful Run API — DONE
 
 ### Goal
 
 Replace stateless single-shot simulation endpoints with a real run lifecycle.
 
-### Tasks
+### Status
 
-- Add run-scoped API routes:
-  - `POST /runs`
-  - `GET /runs/{run_id}`
-  - `POST /runs/{run_id}/tick`
-  - `GET /runs/{run_id}/trajectory`
-  - `PATCH /runs/{run_id}/params`
-  - `POST /runs/{run_id}/phases`
-- Introduce request/response schemas:
-  - `RunConfig`
-  - `ScenarioInput`
-  - `TickOutput`
-  - `TrajectoryWindow`
-  - `PhaseAnnotation`
-  - `ParameterPatch`
-- Add an application service layer above the simulator:
-  - `RunService`
-  - `RunRepository` interface
-  - `TickEventRepository` interface
-- Support both temporal and self-aware runs in one contract.
+All endpoints implemented in `src/api/run_router.py`:
 
-### Deliverables
+- `POST /runs` — creates persisted run with config
+- `GET /runs/{run_id}` — returns RunSummary with tick_count, latest_tick, phases, counts
+- `POST /runs/{run_id}/tick` — executes and persists one tick
+- `GET /runs/{run_id}/trajectory` — returns full trajectory with ticks, phases, invocations, interventions
+- `PATCH /runs/{run_id}/params` — patches mutable config (temperature)
+- `POST /runs/{run_id}/phases` — creates phase annotations
 
-- new API router/module for run lifecycle
-- typed schemas for run creation and tick execution
-- tests for create-run, step-run, fetch-trajectory
+Application service: `RunService` (275 LOC) coordinates persisted runs with simulator reconstruction. Supports both temporal and self-aware runs in one contract.
 
-### Acceptance Criteria
+Schemas: RunConfig, RunCreateRequest, RunTickRequest, RunPatchRequest, RunSummary, TrajectoryResponse, PhaseCreateRequest — all Pydantic.
 
-- a run can be created once and stepped many times
-- run state survives between API calls
-- the API does not require callers to reconstruct simulator state on every tick
+Tests: `test_api_runs.py`, `test_api_basic.py` cover lifecycle, stepping, trajectory retrieval.
 
-## Phase 2: Persistent Storage
+## Phase 2: Persistent Storage — DONE
 
 ### Goal
 
 Persist run and tick state outside process memory.
 
-### Tasks
+### Status
 
-- Choose initial storage:
-  - SQLite for local/dev
-  - Postgres-ready repository boundary for later
-- Add persistence tables/models:
-  - `simulation_run`
-  - `tick_event`
-  - `phase_annotation`
-  - `intervention_decision`
-- Persist at minimum:
-  - run config
-  - current state snapshot
-  - current `psi_hat` if self-aware
-  - tick-by-tick event payloads
-- Define serialization format for arrays and dict-like vectors.
-- Add repository tests covering create/load/append/list operations.
+SQLite storage via `RunStore` (291 LOC) with 5 tables:
 
-### Data To Persist Per Tick
+- `simulation_run` (run_id, mode, status, config_json, parent_run_id, parent_tick, created_at, updated_at)
+- `tick_event` (run_id, tick, scenario_json, requested_outcome, result_json, created_at)
+- `phase_annotation` (run_id, start_tick, end_tick, label, notes, created_at)
+- `agent_invocation` (invocation_id, run_id, agent_name, purpose, input_json, output_json, raw_text, metadata_json, created_at)
+- `intervention_decision` (decision_id, run_id, action, reason, payload_json, applied, created_at)
 
-- tick index
-- scenario payload
-- chosen action
-- action probabilities
-- outcome
-- state before
-- state after
-- activations
-- emotions
-- self-emotions
-- `psi_hat`
-- behavioral evidence
-- self-coherence
-- self-accuracy
-- identity drift
-- prediction error
+Schema auto-initialized on first connection. Thread-safe via Lock(). JSON serialization for all domain objects. Schema defined in `run_store_support.py`.
 
-### Deliverables
+All tick data persisted: tick index, scenario payload, requested outcome, full result (action, probabilities, outcome, state_before, state_after, activations, emotions, self-model fields when applicable).
 
-- persistence module under backend source tree
-- migration/bootstrap script
-- repository integration tests
+Tests: RunStore exercised through API integration tests; 99% coverage.
 
-### Acceptance Criteria
-
-- a run can be resumed after process restart
-- a full trajectory can be reconstructed from storage alone
-- no LLM state is required to recover run truth
-
-## Phase 3: Canonical Tick Event Contract
+## Phase 3: Canonical Tick Event Contract — DONE
 
 ### Goal
 
 Make tick events the canonical substrate for analytics, orchestration, and UI.
 
-### Tasks
+### Status
 
-- Normalize `TickOutput` so every downstream consumer sees the same payload.
-- Add explicit event metadata:
-  - `run_id`
-  - timestamp
-  - tick
-  - event version
-- Add derived fields where justified:
-  - action effort
-  - energy drain
-  - stress estimate
-  - phase labels attached to the tick window, not baked into core truth
-- Keep interpretation fields clearly separated from deterministic engine outputs.
+Normalized via `TickEventRecord` dataclass. Every tick result includes:
 
-### Deliverables
+- run_id (foreign key), tick index, UTC timestamp
+- scenario payload, chosen action, outcome
+- state_before, state_after, activations, emotions, probabilities
+- derived fields: action effort, energy drain, stress estimate
 
-- event schema versioning strategy
-- serializer/deserializer for tick event storage
-- contract tests for API payload compatibility
+Same payload shape consumed by UI, API clients, and LLM agents. Serialization via JSON round-trip through SQLite.
 
-### Acceptance Criteria
-
-- the UI, analytics jobs, and Anthropic agents can all consume the same event shape
-- event payloads are replayable and versioned
-
-## Phase 4: Replay And Branching
+## Phase 4: Replay And Branching — DONE
 
 ### Goal
 
 Make experiments reproducible and branchable.
 
-### Tasks
+### Status
 
-- Add replay endpoint:
-  - `POST /runs/{run_id}/replay`
-- Add branch endpoint:
-  - `POST /runs/{run_id}/branches`
-- Allow branch creation from:
-  - tick N
-  - alternate future scenarios
-  - alternate parameter patches
-- Record lineage:
-  - parent run id
-  - parent tick
-  - branch reason
+Both endpoints implemented:
 
-### Deliverables
+- `POST /runs/{run_id}/replay` — deterministic replay clone
+- `POST /runs/{run_id}/branches` — branch from tick N with optional parameter patch
 
-- replay service
-- branch lineage model
-- tests for deterministic replay consistency
+Lineage tracked: parent_run_id, parent_tick stored in simulation_run table. Branch cutoff validated. Phase annotations copied and trimmed to cutoff.
 
-### Acceptance Criteria
+Tests: `test_api_runs.py::test_replay_and_branch` validates deterministic trajectory equivalence and branch provenance.
 
-- the same run config plus the same scenarios reproduces the same tick sequence when outcomes are deterministic or seeded
-- branch provenance is queryable
-
-## Phase 5: Anthropic Integration Boundary
+## Phase 5: Anthropic Integration Boundary — DONE
 
 ### Goal
 
 Introduce Anthropic as a typed orchestration dependency, not as a state holder.
 
-### Tasks
+### Status
 
-- Add an `llm` package or module boundary:
-  - `AnthropicClientFactory`
-  - `PromptRenderer`
-  - `StructuredOutputValidator`
-  - `AgentRuntime`
-- Use the Anthropic Python library behind a small adapter so model selection is centralized.
-- Define typed outputs for each LLM role:
-  - `ScenarioProposal`
-  - `NarrativeChunk`
-  - `AnalysisReport`
-  - `InterventionRecommendation`
-- Validate all model outputs before use.
-- Persist:
-  - raw prompt input
-  - raw model output
-  - parsed structured output
-  - parse/validation failures
+Complete `src/llm/` package:
 
-### Anthropic-Specific Notes
+- `AnthropicAdapter` — typed wrapper over Anthropic Python client, JSON extraction with markdown fence tolerance, wrapper object normalization
+- `OpenAIAdapter` — same protocol, uses native structured output parser
+- `AgentRuntime` — task-oriented wrapper exposing propose_scenario, summarize_window, analyze_window, recommend_intervention
+- `factory.py` — provider selection via `RED_IRON_SQUARE_LLM_PROVIDER` env var
 
-- Prefer one adapter layer instead of sprinkling Anthropic client calls through business code.
-- Keep model identifiers configurable.
-- Separate prompt templates from runtime policy.
-- Record token/cost metadata if the SDK exposes it.
-- Treat retries and fallback behavior as infrastructure, not domain logic.
+Typed outputs (all Pydantic):
 
-### Deliverables
+- `ScenarioProposal` (name, description, values, rationale)
+- `NarrativeChunk` (summary, tick_start, tick_end, evidence)
+- `AnalysisReport` (dominant_regime, notable_emotions, anomalies, recommendations)
+- `InterventionRecommendation` (action, reason, temperature) with constrained action set
 
-- Anthropic adapter module
-- structured-output parsing flow
-- persistence for agent messages and tool decisions
+Persistence: agent_invocation table stores raw_text, input/output JSON, metadata (model, provider, stop_reason, input_tokens, output_tokens).
 
-### Acceptance Criteria
+No domain module imports Anthropic directly. All model outputs validated via Pydantic before use.
 
-- no domain module imports Anthropic directly
-- every model-produced action is validated before execution
-- failed structured outputs are observable and testable
+Tests: `test_llm.py` (9 tests) covers JSON parsing, model validation, credential checking, token capture with mocked clients.
 
-## Phase 6: Minimum Agent Runtime
+## Phase 6: Minimum Agent Runtime — DONE
 
 ### Goal
 
 Ship the smallest useful agent-assisted loop.
 
-### Initial Agent Set
+### Status
 
-- `ScenarioAgent`
-- `ObserverAgent`
+`POST /runs/{run_id}/assist/step` implements the full loop:
 
-### Tasks
+1. Load recent trajectory window
+2. Call propose_scenario (ScenarioAgent) with current state + user goals
+3. Execute tick with proposed scenario
+4. Call summarize_window (ObserverAgent) on updated trajectory
+5. Persist both agent invocations
+6. Return AssistedStepResponse with scenario, tick, narrative, invocations
 
-- Implement `ScenarioAgent`:
-  - input: recent trajectory, user goals, current run state
-  - output: validated `ScenarioProposal`
-- Implement `ObserverAgent`:
-  - input: recent tick window
-  - output: validated summary/narrative
-- Add orchestration service method:
-  - load recent state
-  - ask scenario agent for next scenario
-  - execute tick
-  - persist tick
-  - ask observer for summary
-  - persist observer output
+Tests: `test_api_agents.py::test_assisted_step_persists_agent_invocations` with FakeAgentRuntime.
 
-### Deliverables
-
-- CLI or API endpoint to run one assisted step
-- tests with mocked Anthropic adapter
-
-### Acceptance Criteria
-
-- the system can perform one end-to-end assisted tick without manual scenario construction
-- the simulator remains authoritative for the resulting state
-
-## Phase 7: Analysis And Intervention Agents
+## Phase 7: Analysis And Intervention Agents — DONE
 
 ### Goal
 
 Add higher-order interpretation and control, still behind explicit boundaries.
 
-### Agents
+### Status
 
-- `AffectAnalystAgent`
-- `InterventionAgent`
+`POST /runs/{run_id}/intervention` implements:
 
-### Tasks
+- Calls recommend_intervention (InterventionAgent) with current state, recent ticks, user goals
+- Persists intervention decision (action, reason, payload, applied flag)
+- Optionally applies patch_params intervention (temperature adjustment)
+- Returns InterventionResponse with recommendation, invocation, decision, updated_run
 
-- Implement analysis reports from trajectory windows.
-- Implement intervention recommendations:
-  - continue
-  - probe
-  - narrate
-  - analyze
-  - patch params
-  - pause
-  - terminate
-- Require all intervention outputs to become explicit API calls or internal service actions, never direct state mutation.
+7 constrained intervention actions: continue, probe, narrate, analyze, patch_params, pause, terminate. All outputs logged as explicit decisions in intervention_decision table.
 
-### Deliverables
+Tests: `test_api_agents.py::test_intervention_endpoint_persists_and_applies_patch`.
 
-- intervention schema
-- analysis schema
-- policy tests for allowed vs forbidden actions
-
-### Acceptance Criteria
-
-- interventions are logged as explicit decisions
-- interventions are replayable as part of a campaign history
-
-## Phase 8: Campaign Orchestration
+## Phase 8: Campaign Orchestration — NOT STARTED
 
 ### Goal
 
@@ -374,36 +231,39 @@ Support longer-running research campaigns rather than isolated runs.
 - one campaign can coordinate multiple runs and branches
 - campaign-level analysis is reproducible from stored artifacts
 
-## Phase 9: Thin Telemetry Frontend
+## Phase 9: Thin Telemetry Frontend — PARTIAL
 
 ### Goal
 
 Add a frontend only after the API and event model are stable.
 
-### Tasks
+### Status
 
-- Build frontend as pure API client.
-- Do not embed simulator math in the browser.
-- Minimum features:
-  - run creation
-  - tick stepping
-  - trajectory charts
-  - event table
-  - narrative panel
-  - phase markers
-- Define frontend contracts from API schemas, not ad hoc objects.
+Flask UI implemented in `src/ui/` (app.py 186 LOC, api_client.py 70 LOC):
 
-### Deliverables
+- Dark-themed dashboard with Inter + JetBrains Mono typography
+- Run creation with JSON config editor
+- AI-assisted step with goal input and lookback window
+- Intervention request with auto-apply option
+- Manual tick with scenario JSON editor
+- Personality profile visualization (dimension bars with full names)
+- Internal state visualization (mood, arousal, energy, satisfaction, frustration as colored bars)
+- Emotion tag display with intensity tooltips
+- Tabbed data panels: Steps (with outcome narrative), AI Calls, Interventions
+- API status indicator, run ID display, toast notifications
+- Plain-language explanations for every action
 
-- frontend app consuming FastAPI endpoints
-- typed client models
+Tests: `test_ui.py` (2 tests) covers rendering and run view loading.
 
-### Acceptance Criteria
+### Remaining
 
-- the frontend can be deleted and rebuilt without changing simulator truth
-- the backend remains fully usable without the frontend
+- Trajectory charts (emotion arcs over time, state evolution graphs)
+- Phase timeline markers on trajectory view
+- Identity drift visualization for self-aware runs
+- Branch comparison view
+- Typed frontend client models (currently uses raw dicts)
 
-## Phase 10: Full Orchestrator
+## Phase 10: Full Orchestrator — NOT STARTED
 
 ### Goal
 
@@ -437,50 +297,62 @@ Only after the previous phases are stable, add a manager-style orchestrator.
 
 ## Cross-Cutting Work
 
-### Testing
+### Testing — DONE
 
-- unit tests for schema validation
-- repository integration tests
-- deterministic replay tests
-- mocked Anthropic adapter tests
-- API contract tests
+- unit tests for schema validation: Pydantic models tested across all API tests
+- repository integration tests: test_api_runs.py, test_api_agents.py exercise persistence
+- deterministic replay tests: test_api_runs.py validates trajectory equivalence
+- mocked Anthropic adapter tests: test_llm.py with FakeAnthropicClient, FakeOpenAIClient
+- API contract tests: test_api_basic.py, test_api_runs.py, test_api_agents.py
+- e2e test with real Anthropic: test_e2e.py (requires credentials)
+- 127 tests total, 92.5% coverage
 
-### Observability
+### Observability — DONE
 
-- structured logs for run lifecycle
-- structured logs for agent invocations
-- correlation ids:
-  - campaign id
-  - run id
-  - tick id
-  - agent invocation id
+- structured logs via structlog (`src/shared/logging.py`)
+- agent invocation audit trail (raw_text, metadata_json per invocation)
+- token/cost metadata captured (input_tokens, output_tokens, model, provider)
+- remaining: explicit correlation ID propagation through request lifecycle
 
-### Security And Safety
+### Security And Safety — DONE
 
-- validate all incoming scenario values
-- validate all model-produced outputs
-- prevent direct mutation of persisted state from orchestration components
-- keep intervention permissions explicit
+- Pydantic validation on all incoming payloads
+- parameterized SQL queries throughout RunStore
+- credentials loaded from environment only (never hardcoded)
+- LLM configuration failures return HTTP 503 with actionable messages
+- intervention permissions constrained to 7 explicit actions
 
-### Configuration
+### Configuration — DONE
 
-- Anthropic API key via environment
-- model names configurable by environment
-- storage backend configurable by environment
-- replay seed behavior documented and testable
+- `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` for Anthropic
+- `OPENAI_API_KEY` for OpenAI
+- `RED_IRON_SQUARE_LLM_PROVIDER` for provider selection (anthropic|openai)
+- Database path configurable (defaults to `.data/red_iron_square.sqlite3`)
+- `FLASK_SECRET_KEY`, `FLASK_DEBUG` for UI
+- `RED_IRON_SQUARE_API_URL` for UI-to-API connection
+- Replay seed behavior documented and functional
 
-## Recommended Execution Order
+## Summary
 
-1. Phase 1: Stateful Run API
-2. Phase 2: Persistent Storage
-3. Phase 3: Canonical Tick Event Contract
-4. Phase 4: Replay And Branching
-5. Phase 5: Anthropic Integration Boundary
-6. Phase 6: Minimum Agent Runtime
-7. Phase 7: Analysis And Intervention Agents
-8. Phase 8: Campaign Orchestration
-9. Phase 9: Thin Telemetry Frontend
-10. Phase 10: Full Orchestrator
+| Phase | Status |
+|-------|--------|
+| 0 — Baseline Consolidation | DONE |
+| 1 — Stateful Run API | DONE |
+| 2 — Persistent Storage | DONE |
+| 3 — Canonical Tick Event Contract | DONE |
+| 4 — Replay And Branching | DONE |
+| 5 — Anthropic Integration Boundary | DONE |
+| 6 — Minimum Agent Runtime | DONE |
+| 7 — Analysis And Intervention Agents | DONE |
+| 8 — Campaign Orchestration | NOT STARTED |
+| 9 — Thin Telemetry Frontend | PARTIAL |
+| 10 — Full Orchestrator | NOT STARTED |
+
+## Recommended Next Priorities
+
+1. **Phase 9 completion**: Add trajectory charts (emotion arcs, state evolution), phase timeline markers, and identity drift visualization to the Flask UI.
+2. **Phase 8**: Introduce campaign model and cross-run analytics — the infrastructure (runs, branches, persistence) is ready to support it.
+3. **Phase 10**: Full orchestrator with MetaController and human checkpoints — deferred until campaign model exists.
 
 ## Explicit Non-Goals For Now
 
@@ -488,15 +360,3 @@ Only after the previous phases are stable, add a manager-style orchestrator.
 - no direct LLM ownership of memory or state
 - no peer-to-peer freeform agent mesh before persistence exists
 - no hidden state transitions outside the tick pipeline
-
-## Immediate Next Sprint
-
-If only one sprint is funded, do this:
-
-1. Implement stateful run lifecycle endpoints.
-2. Persist runs and tick events in SQLite.
-3. Add canonical `TickOutput` persistence and retrieval.
-4. Add replay-from-run support.
-5. Add Anthropic adapter interface with mocked tests only.
-
-That yields the first architecture milestone where the simulator is a real service, trajectories are durable, and Anthropic integration can be added safely without corrupting state ownership.

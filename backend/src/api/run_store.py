@@ -74,6 +74,31 @@ class RunStore:
             self._conn.commit()
         return run_id
 
+    def list_runs(self) -> list[dict[str, Any]]:
+        """Return all runs ordered by most recently updated."""
+        rows = self._conn.execute(
+            """
+            SELECT run_id, mode, status, config_json,
+                parent_run_id, parent_tick,
+                created_at, updated_at
+            FROM simulation_run
+            ORDER BY updated_at DESC
+            """
+        ).fetchall()
+        return [
+            {
+                "run_id": row["run_id"],
+                "mode": row["mode"],
+                "status": row["status"],
+                "config": json.loads(row["config_json"]),
+                "parent_run_id": row["parent_run_id"],
+                "parent_tick": row["parent_tick"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+            for row in rows
+        ]
+
     def get_run(self, run_id: str) -> dict[str, Any] | None:
         """Return one run record or `None`."""
         row = self._conn.execute(

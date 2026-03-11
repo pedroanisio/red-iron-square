@@ -132,24 +132,31 @@ def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
     api_ok = False
     run = None
     trajectory = None
+    recent_runs: list[dict[str, Any]] = []
     if run_id:
         session["run_id"] = run_id
     try:
         api_ok = client.health()["status"] == "ok"
     except Exception:  # noqa: BLE001
         api_ok = False
-    if api_ok and run_id:
+    if api_ok:
         try:
-            run = client.get_run(run_id)
-            trajectory = client.get_trajectory(run_id)
+            recent_runs = client.list_runs()
         except Exception:  # noqa: BLE001
-            run = None
-            trajectory = None
+            recent_runs = []
+        if run_id:
+            try:
+                run = client.get_run(run_id)
+                trajectory = client.get_trajectory(run_id)
+            except Exception:  # noqa: BLE001
+                run = None
+                trajectory = None
     return {
         "api_ok": api_ok,
         "run_id": run_id,
         "run": run,
         "trajectory": trajectory,
+        "recent_runs": recent_runs,
         "default_run_config": json.dumps(DEFAULT_RUN_CONFIG, indent=2),
         "default_scenario": json.dumps(
             {"name": "manual_probe", "values": {"O": 0.8, "N": 0.3}},

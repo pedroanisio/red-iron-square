@@ -23,6 +23,11 @@ class ApiClient:
         """Fetch the API health endpoint."""
         return self._request("GET", "/health")
 
+    def list_runs(self) -> list[dict[str, Any]]:
+        """Fetch all runs."""
+        runs: list[dict[str, Any]] = self._request("GET", "/runs")["data"]
+        return runs
+
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create one run."""
         data: dict[str, Any] = self._request("POST", "/runs", payload)["data"]

@@ -37,6 +37,11 @@ def create_run_router(
     """Create the stateful run router."""
     router = APIRouter()
 
+    @router.get("/runs")
+    def list_runs() -> dict[str, Any]:
+        """List all persisted runs."""
+        return {"data": run_service.list_runs()}
+
     @router.post("/runs")
     def create_run(request: RunCreateRequest) -> dict[str, Any]:
         """Create a persisted simulation run."""

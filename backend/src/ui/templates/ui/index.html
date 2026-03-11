@@ -26,6 +26,50 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
   <span class="tag {{ cls }}" title="{{ em.description | default('') }} (intensity: {{ '%.2f' | format(em.intensity) }})">{{ em.label }}</span>
 {% endmacro %}
 
+{# ── Sparkline SVG macro ── #}
+{% macro sparkline_chart(ticks) %}
+{% if ticks | length >= 2 %}
+{% set w = 480 %}{% set h = 120 %}{% set pad = 16 %}
+{% set n = ticks | length %}
+{% set x_step = (w - 2 * pad) / (n - 1) if n > 1 else 0 %}
+<div class="sparkline-wrap">
+  <svg viewBox="0 0 {{ w }} {{ h }}" width="100%" preserveAspectRatio="xMidYMid meet" style="max-width:{{ w }}px;">
+    {# Grid line at zero for mood #}
+    <line x1="{{ pad }}" y1="{{ h / 2 }}" x2="{{ w - pad }}" y2="{{ h / 2 }}" stroke="var(--border)" stroke-dasharray="4 4" />
+    {# Mood line (range -1 to 1) #}
+    <polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" points="
+      {%- for tick in ticks -%}
+        {%- if tick.state_after -%}
+          {{ pad + loop.index0 * x_step }},{{ pad + (1 - tick.state_after.mood) * (h - 2 * pad) / 2 }}{{ " " }}
+        {%- endif -%}
+      {%- endfor -%}
+    "/>
+    {# Energy line (range 0 to 1) #}
+    <polyline fill="none" stroke="var(--green)" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6 3" points="
+      {%- for tick in ticks -%}
+        {%- if tick.state_after -%}
+          {{ pad + loop.index0 * x_step }},{{ pad + (1 - tick.state_after.energy) * (h - 2 * pad) }}{{ " " }}
+        {%- endif -%}
+      {%- endfor -%}
+    "/>
+    {# Frustration line (range 0 to 1) #}
+    <polyline fill="none" stroke="var(--red)" stroke-width="2" stroke-linejoin="round" stroke-dasharray="2 3" points="
+      {%- for tick in ticks -%}
+        {%- if tick.state_after -%}
+          {{ pad + loop.index0 * x_step }},{{ pad + (1 - tick.state_after.frustration) * (h - 2 * pad) }}{{ " " }}
+        {%- endif -%}
+      {%- endfor -%}
+    "/>
+  </svg>
+  <div class="sparkline-legend">
+    <div class="sparkline-legend-item"><span class="sparkline-legend-dot" style="background:var(--accent);"></span> Mood</div>
+    <div class="sparkline-legend-item"><span class="sparkline-legend-dot" style="background:var(--green);"></span> Energy</div>
+    <div class="sparkline-legend-item"><span class="sparkline-legend-dot" style="background:var(--red);"></span> Frustration</div>
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+
 {% block topbar_right %}
 <div style="display:flex;align-items:center;gap:12px;">
   {% if run_id %}<span class="run-id" title="{{ run_id }}">{{ run_id }}</span>{% endif %}
@@ -37,9 +81,31 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 <div class="grid-main">
   <!-- ── Sidebar ── -->
   <div class="sidebar">
+    {# Run browser #}
+    {% if recent_runs %}
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Recent Runs</span></div>
+      <div class="card-bd" style="padding:10px;">
+        <ul class="run-list">
+          {% for r in recent_runs[:10] %}
+          <li>
+            <a class="run-item {{ 'active' if r.run_id == run_id else '' }}" href="/?run_id={{ r.run_id }}">
+              <div>
+                <div class="run-item-id">{{ r.run_id[:12] }}...</div>
+                <div class="run-item-meta">{{ r.mode }} &middot; {{ r.tick_count }} steps</div>
+              </div>
+              <span class="tag {{ 'tag-green' if r.status == 'active' else 'tag-red' }}">{{ r.status }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
     {# New Run #}
     <div class="card">
-      <div class="card-hd"><span class="card-title">Start a Simulation</span></div>
+      <div class="card-hd" data-collapse><span class="card-title">Start a Simulation</span></div>
       <div class="card-bd">
         <form method="post" action="{{ url_for('create_run') }}">
           <div class="field">
@@ -54,9 +120,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
     {# Assist Step #}
     <div class="card">
-      <div class="card-hd">
-        <span class="card-title">AI-Assisted Step</span>
-      </div>
+      <div class="card-hd" data-collapse><span class="card-title">AI-Assisted Step</span></div>
       <div class="card-bd">
         <form method="post" action="{{ url_for('assist_step', run_id=run_id or '') }}">
           <div class="field">
@@ -76,7 +140,7 @@ watch emerging emotions</textarea>
 
     {# Intervention #}
     <div class="card">
-      <div class="card-hd"><span class="card-title">Request Intervention</span></div>
+      <div class="card-hd" data-collapse><span class="card-title">Request Intervention</span></div>
       <div class="card-bd">
         <form method="post" action="{{ url_for('intervention', run_id=run_id or '') }}">
           <div class="field">
@@ -102,7 +166,7 @@ reduce randomness</textarea>
 
     {# Manual Tick #}
     <div class="card">
-      <div class="card-hd"><span class="card-title">Manual Step</span></div>
+      <div class="card-hd" data-collapse><span class="card-title">Manual Step</span></div>
       <div class="card-bd">
         <form method="post" action="{{ url_for('tick', run_id=run_id or '') }}">
           <div class="field">
@@ -148,7 +212,11 @@ reduce randomness</textarea>
           </div>
         </div>
         <p style="color:var(--text-3);font-size:12px;margin-top:1.5rem;">
-          Use the sidebar to start, or load an existing run with <span class="mono">?run_id=...</span>
+          {% if recent_runs %}
+            Select a run from the sidebar, or start a new one.
+          {% else %}
+            Use the sidebar to start your first simulation.
+          {% endif %}
         </p>
       </div>
     </div>
@@ -177,6 +245,16 @@ reduce randomness</textarea>
         <div class="stat-value" style="font-size:16px;">{{ "%.2f" | format(run.config.temperature | default(1.0)) }}</div>
       </div>
     </div>
+
+    {# Trajectory sparkline chart #}
+    {% if trajectory and trajectory.ticks | length >= 2 %}
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Trajectory</span></div>
+      <div class="card-bd">
+        {{ sparkline_chart(trajectory.ticks) }}
+      </div>
+    </div>
+    {% endif %}
 
     {# Personality profile #}
     {% if run.config.personality %}
@@ -327,6 +405,7 @@ reduce randomness</textarea>
 
 {% block scripts %}
 <script>
+  /* Tab switching */
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var card = btn.closest('#data-card');
@@ -336,9 +415,5 @@ reduce randomness</textarea>
       card.querySelector('#panel-' + btn.dataset.tab).classList.add('active');
     });
   });
-  setTimeout(function() {
-    var c = document.querySelector('.toast-wrap');
-    if (c) c.style.display = 'none';
-  }, 5000);
 </script>
 {% endblock %}

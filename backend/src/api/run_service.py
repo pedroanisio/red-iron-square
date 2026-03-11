@@ -30,6 +30,14 @@ class RunService:
     def __init__(self, store: RunStore) -> None:
         self._store = store
 
+    def list_runs(self) -> list[dict[str, Any]]:
+        """Return all runs with tick counts, most recent first."""
+        runs = self._store.list_runs()
+        for run in runs:
+            ticks = self._store.list_ticks(run["run_id"])
+            run["tick_count"] = len(ticks)
+        return runs
+
     def create_run(self, config: dict[str, Any]) -> dict[str, Any]:
         """Create one run and return its summary."""
         mode = "self_aware" if config.get("self_model") is not None else "temporal"
