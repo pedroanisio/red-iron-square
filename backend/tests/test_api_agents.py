@@ -7,11 +7,20 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
 
-from tests.api_support import create_base_run, make_client  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from src.api import create_app  # noqa: E402
+
+from tests.api_support import (  # noqa: E402
+    create_base_run,
+    make_client,
+    make_database_path,
+)
 
 
 def test_assisted_step_persists_agent_invocations() -> None:
@@ -57,3 +66,46 @@ def test_intervention_endpoint_persists_and_applies_patch() -> None:
     trajectory = client.get(f"/runs/{run_id}/trajectory").json()["data"]
     assert len(trajectory["interventions"]) == 1
     assert trajectory["interventions"][0]["action"] == "patch_params"
+
+
+def test_assisted_step_returns_503_when_anthropic_credentials_are_missing() -> None:
+    database_path = make_database_path(
+        "test_assisted_step_missing_anthropic_credentials"
+    )
+    with patch.dict(
+        "os.environ",
+        {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""},
+        clear=False,
+    ):
+        client = TestClient(create_app(database_path))
+        run_id = create_base_run(client)
+
+        assist_response = client.post(
+            f"/runs/{run_id}/assist/step",
+            json={"goals": ["probe novelty"], "window": 5},
+        )
+
+    assert assist_response.status_code == fastapi.status.HTTP_503_SERVICE_UNAVAILABLE
+    assert "ANTHROPIC_API_KEY" in assist_response.json()["detail"]
+
+
+def test_assisted_step_returns_503_when_openai_credentials_are_missing() -> None:
+    database_path = make_database_path("test_assisted_step_missing_openai_credentials")
+    with patch.dict(
+        "os.environ",
+        {
+            "RED_IRON_SQUARE_LLM_PROVIDER": "openai",
+            "OPENAI_API_KEY": "",
+        },
+        clear=False,
+    ):
+        client = TestClient(create_app(database_path))
+        run_id = create_base_run(client)
+
+        assist_response = client.post(
+            f"/runs/{run_id}/assist/step",
+            json={"goals": ["probe novelty"], "window": 5},
+        )
+
+    assert assist_response.status_code == fastapi.status.HTTP_503_SERVICE_UNAVAILABLE
+    assert "OPENAI_API_KEY" in assist_response.json()["detail"]

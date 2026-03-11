@@ -12,6 +12,7 @@ The backend now ships with:
 - a stable SDK facade via `src.sdk.AgentSDK`
 - a packaged CLI via `red-iron-square`
 - a thin FastAPI transport under `src.api`
+- a Flask + Jinja2 UI under `src.ui`
 - runnable JSON examples under [backend/examples](/home/admin/spikes/red-iron-square/backend/examples)
 
 ## Public API Boundary
@@ -22,6 +23,7 @@ Public modules:
 - `src.sdk`
 - `src.sdk.cli`
 - `src.api`
+- `src.ui`
 
 Internal modules:
 - `src.personality`
@@ -44,7 +46,37 @@ uv run red-iron-square --help
 To run the HTTP transport:
 
 ```bash
+uv sync --extra api
 uv run uvicorn src.api.app:create_app --factory --reload
+```
+
+LLM-backed endpoints use `anthropic` by default. To switch to OpenAI, set:
+
+```bash
+export RED_IRON_SQUARE_LLM_PROVIDER=openai
+export OPENAI_API_KEY=...
+```
+
+Anthropic remains available with:
+
+```bash
+export RED_IRON_SQUARE_LLM_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=...
+```
+
+To run the Flask UI:
+
+```bash
+uv sync --extra ui
+uv run red-iron-square-ui
+```
+
+To run both together:
+
+```bash
+uv sync --extra api --extra ui
+uv run uvicorn src.api.app:create_app --factory --host 127.0.0.1 --port 8000
+uv run red-iron-square-ui
 ```
 
 ## Python SDK Example
@@ -141,6 +173,16 @@ Available endpoints:
 - `GET /health`
 - `POST /decide`
 - `POST /simulate`
+- `POST /runs`
+- `GET /runs/{run_id}`
+- `POST /runs/{run_id}/tick`
+- `GET /runs/{run_id}/trajectory`
+- `PATCH /runs/{run_id}/params`
+- `POST /runs/{run_id}/phases`
+- `POST /runs/{run_id}/replay`
+- `POST /runs/{run_id}/branches`
+- `POST /runs/{run_id}/assist/step`
+- `POST /runs/{run_id}/intervention`
 
 Example health check:
 
@@ -163,4 +205,36 @@ curl -X POST http://127.0.0.1:8000/decide \
   }'
 ```
 
-The current backend test status is `108 passed` under `uv run pytest -q`.
+Example stateful run flow:
+
+```bash
+curl -X POST http://127.0.0.1:8000/runs \
+  -H 'content-type: application/json' \
+  -d '{
+    "personality": {"O":0.8,"C":0.5,"E":0.3,"A":0.7,"N":0.4,"R":0.9,"I":0.6,"T":0.2},
+    "actions": [
+      {"name":"bold","modifiers":{"O":1.0,"R":0.8,"N":-0.3}},
+      {"name":"safe","modifiers":{"C":0.9,"T":0.8}}
+    ],
+    "temperature": 1.0,
+    "seed": 42
+  }'
+```
+
+## Flask UI
+
+The Flask UI lives under [backend/src/ui](/home/admin/spikes/red-iron-square/backend/src/ui). It is a thin client over the FastAPI service and does not embed simulator logic.
+
+It provides:
+- run creation from JSON config
+- manual tick execution
+- assisted step execution
+- intervention requests
+- run summary and latest tick
+- persisted call log from agent invocations
+- intervention history
+- tick trace display
+
+The UI uses Jinja2 templates styled with Carbon classes and expects the API base URL from `RED_IRON_SQUARE_API_URL` if you do not want the default `http://127.0.0.1:8000`.
+
+The current backend test status is `117 passed` under `uv run pytest -q`.

@@ -27,7 +27,7 @@ from src.api.run_schemas import (
     TrajectoryResponse,
 )
 from src.api.run_service import RunService
-from src.llm import AgentRuntime, AnthropicAdapter
+from src.llm import AgentRuntime, LLMConfigurationError, build_default_runtime
 
 
 def create_run_router(
@@ -129,7 +129,10 @@ def create_run_router(
     @router.post("/runs/{run_id}/assist/step")
     def assist_step(run_id: str, request: AssistedStepRequest) -> dict[str, Any]:
         """Use the agent runtime to propose a scenario, execute it, and summarize it."""
-        runtime = agent_runtime or AgentRuntime(AnthropicAdapter())
+        try:
+            runtime = agent_runtime or build_default_runtime()
+        except LLMConfigurationError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         try:
             run = run_service.get_run(run_id)
         except KeyError as exc:
@@ -182,7 +185,10 @@ def create_run_router(
         run_id: str, request: InterventionRequest
     ) -> dict[str, Any]:
         """Recommend an intervention and apply patches."""
-        runtime = agent_runtime or AgentRuntime(AnthropicAdapter())
+        try:
+            runtime = agent_runtime or build_default_runtime()
+        except LLMConfigurationError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         try:
             run = run_service.get_run(run_id)
         except KeyError as exc:

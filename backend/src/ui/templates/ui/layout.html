@@ -1,0 +1,140 @@
+<!--
+DISCLAIMER: No information within should be taken for granted.
+Any statement or premise not backed by a real logical definition
+or verifiable reference may be invalid, erroneous, or a hallucination.
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Red Iron Square</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --bg: #0f1117; --surface: #1a1d27; --raised: #22252f;
+        --border: #2e3140; --border-active: #4a4f63;
+        --text: #e8eaf0; --text-2: #9ca0b0; --text-3: #6b6f82;
+        --accent: #6c8cff; --accent-dim: rgba(108,140,255,.12);
+        --green: #3dd68c; --green-dim: rgba(61,214,140,.12);
+        --red: #ff6b6b; --red-dim: rgba(255,107,107,.12);
+        --amber: #fbbf24; --amber-dim: rgba(251,191,36,.12);
+        --purple: #a78bfa; --purple-dim: rgba(167,139,250,.12);
+        --radius: 8px; --radius-lg: 12px;
+        --font: 'Inter', -apple-system, sans-serif;
+        --mono: 'JetBrains Mono', monospace;
+      }
+      body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+      /* Top bar */
+      .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+      .topbar-brand { font-weight: 700; font-size: 15px; letter-spacing: -.02em; }
+      .topbar-brand span { color: var(--accent); }
+      .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+      .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+      .badge-ok { background: var(--green-dim); color: var(--green); }
+      .badge-err { background: var(--red-dim); color: var(--red); }
+
+      /* Toast */
+      .toast-wrap { position: fixed; top: 64px; right: 1rem; z-index: 200; display: flex; flex-direction: column; gap: 8px; max-width: 400px; }
+      .toast { padding: 12px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; animation: toast-in .3s ease-out; }
+      .toast-success { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,214,140,.2); }
+      .toast-error { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,107,107,.2); }
+      @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } }
+
+      /* Layout */
+      .page { padding: 1.5rem; max-width: 1440px; margin: 0 auto; }
+
+      /* Card */
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+      .card-hd { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+      .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-2); }
+      .card-bd { padding: 18px; }
+      .card-hint { font-size: 12px; color: var(--text-3); margin-top: 8px; line-height: 1.5; }
+
+      /* Forms */
+      label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; }
+      textarea, input[type="text"], input[type="number"] { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.5; resize: vertical; transition: border-color .15s; }
+      textarea:focus, input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+      .field + .field { margin-top: 14px; }
+
+      /* Buttons */
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border: none; border-radius: var(--radius); font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; width: 100%; margin-top: 16px; }
+      .btn-primary { background: var(--accent); color: #fff; }
+      .btn-primary:hover { background: #5a7cf0; }
+      .btn-secondary { background: var(--raised); color: var(--text); border: 1px solid var(--border); }
+      .btn-secondary:hover { border-color: var(--border-active); background: var(--border); }
+      .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+      .checkbox-row { display: flex; align-items: center; gap: 8px; }
+      .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+      .checkbox-row label { margin-bottom: 0; font-size: 13px; }
+
+      /* Bars */
+      .bar-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; flex: 1; border: 1px solid var(--border); }
+      .bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+      .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      .bar-label { font-size: 11px; font-weight: 500; color: var(--text-3); width: 80px; text-transform: uppercase; letter-spacing: .04em; }
+      .bar-val { font-family: var(--mono); font-size: 11px; color: var(--text-3); width: 40px; text-align: right; }
+
+      /* Tags / pills */
+      .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin: 2px 2px; }
+      .tag-accent { background: var(--accent-dim); color: var(--accent); }
+      .tag-amber { background: var(--amber-dim); color: var(--amber); }
+      .tag-green { background: var(--green-dim); color: var(--green); }
+      .tag-red { background: var(--red-dim); color: var(--red); }
+      .tag-purple { background: var(--purple-dim); color: var(--purple); }
+
+      /* Tabs */
+      .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+      .tab-btn { padding: 12px 18px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-3); font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; }
+      .tab-btn:hover { color: var(--text-2); }
+      .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+      .tab-btn .cnt { margin-left: 6px; font-size: 11px; opacity: .7; }
+      .tab-panel { display: none; padding: 16px 18px; max-height: 520px; overflow: auto; }
+      .tab-panel.active { display: block; }
+
+      /* Stat grid */
+      .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+      .stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+      .stat-label { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; }
+      .stat-value { font-size: 22px; font-weight: 700; margin-top: 4px; letter-spacing: -.02em; }
+
+      /* Event list */
+      .ev { padding: 16px 0; border-bottom: 1px solid var(--border); }
+      .ev:last-child { border-bottom: none; }
+      .ev-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+      .ev-desc { font-size: 13px; color: var(--text-2); margin-bottom: 8px; line-height: 1.5; }
+
+      pre { font-family: var(--mono); font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); background: var(--bg); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border); max-height: 180px; overflow: auto; }
+      .empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-3); font-size: 13px; }
+      .mono { font-family: var(--mono); }
+      .run-id { font-family: var(--mono); font-size: 12px; color: var(--text-3); background: var(--bg); padding: 6px 10px; border-radius: var(--radius); display: inline-block; border: 1px solid var(--border); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      /* Layout grid */
+      .grid-main { display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; align-items: start; }
+      .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+      @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-brand"><span>&#9632;</span> Red Iron Square</div>
+      {% block topbar_right %}{% endblock %}
+    </header>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="toast-wrap">
+          {% for category, message in messages %}
+            <div class="toast toast-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <div class="page">{% block content %}{% endblock %}</div>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

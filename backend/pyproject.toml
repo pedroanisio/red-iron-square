@@ -13,17 +13,20 @@ dependencies = [
     "structlog>=24.1",
     "python-dotenv>=1.0",
     "fastapi>=0.115",
+    "anthropic>=0.49",
+    "openai>=1.68",
 ]
 
 [project.scripts]
 red-iron-square = "src.sdk.cli:main"
+red-iron-square-ui = "src.ui.app:main"
 
 [project.optional-dependencies]
 api = [
     "uvicorn>=0.30",
 ]
-llm = [
-    "anthropic>=0.49",
+ui = [
+    "flask>=3.1",
 ]
 
 [dependency-groups]
@@ -33,6 +36,8 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "httpx>=0.28",
+    "flask>=3.1",
+    "pre-commit>=4.5.1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -41,6 +46,9 @@ packages = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "real_llm: exercises the live provider-backed runtime and requires credentials",
+]
 
 [tool.coverage.run]
 source = ["src"]
@@ -72,7 +80,19 @@ module = "anthropic.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "openai.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "flask.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "src.api.app"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "src.ui.app"
 disallow_untyped_decorators = false
 
 [tool.ruff]

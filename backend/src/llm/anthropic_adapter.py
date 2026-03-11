@@ -8,8 +8,11 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 from __future__ import annotations
 
 import json
-from typing import Protocol, TypeVar
+import os
+import re
+from typing import Protocol, TypeVar, cast
 
+from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from src.llm.schemas import LLMInvocationMetadata, LLMInvocationResult
@@ -37,7 +40,7 @@ class AnthropicAdapter:
         self,
         client: AnthropicClientProtocol | None = None,
         *,
-        model: str = "claude-3-7-sonnet-latest",
+        model: str = "claude-sonnet-4-20250514",
         max_tokens: int = 1000,
     ) -> None:
         self._client = client or self._build_default_client()
@@ -47,9 +50,24 @@ class AnthropicAdapter:
     @staticmethod
     def _build_default_client() -> AnthropicClientProtocol:
         """Construct the default Anthropic client lazily."""
+        load_dotenv()
+        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTROPHIC_API_KEY")
+        auth_token = os.getenv("ANTHROPIC_AUTH_TOKEN")
+        if not api_key and not auth_token:
+            raise LLMConfigurationError(
+                "Anthropic credentials are not configured. "
+                "Set `ANTHROPIC_API_KEY` (or legacy `ANTROPHIC_API_KEY`) "
+                "or `ANTHROPIC_AUTH_TOKEN`."
+            )
         from anthropic import Anthropic
 
-        return Anthropic()  # type: ignore[no-any-return]
+        return cast(
+            AnthropicClientProtocol,
+            Anthropic(
+                api_key=api_key,
+                auth_token=auth_token,
+            ),
+        )
 
     def complete_json(
         self,
@@ -66,7 +84,10 @@ class AnthropicAdapter:
             messages=[{"role": "user", "content": user_prompt}],
         )
         raw_text = self._extract_text(response)
-        parsed = response_model.model_validate(json.loads(raw_text))
+        parsed_payload = self._decode_json_payload(raw_text)
+        parsed = response_model.model_validate(
+            self._normalize_payload(parsed_payload, response_model)
+        )
         metadata = LLMInvocationMetadata(
             model=self._model,
             stop_reason=getattr(response, "stop_reason", None),
@@ -93,3 +114,79 @@ class AnthropicAdapter:
         if not text_blocks:
             raise ValueError("Anthropic response does not contain any text blocks.")
         return "".join(text_blocks)
+
+    @staticmethod
+    def _decode_json_payload(raw_text: str) -> object:
+        """Decode JSON from a raw model response, tolerating fenced code blocks."""
+        try:
+            return json.loads(raw_text)
+        except json.JSONDecodeError:
+            pass
+
+        fenced_match = re.search(
+            r"```(?:json)?\s*(?P<body>[\s\S]*?)\s*```",
+            raw_text,
+            flags=re.IGNORECASE,
+        )
+        if fenced_match is not None:
+            return json.loads(fenced_match.group("body"))
+
+        stripped = raw_text.strip()
+        object_start = stripped.find("{")
+        object_end = stripped.rfind("}")
+        if object_start != -1 and object_end != -1 and object_end > object_start:
+            return json.loads(stripped[object_start : object_end + 1])
+
+        array_start = stripped.find("[")
+        array_end = stripped.rfind("]")
+        if array_start != -1 and array_end != -1 and array_end > array_start:
+            return json.loads(stripped[array_start : array_end + 1])
+
+        raise ValueError("Anthropic response did not contain valid JSON.")
+
+    @staticmethod
+    def _normalize_payload(
+        payload: object,
+        response_model: type[StructuredModelT],
+    ) -> object:
+        """Normalize common wrapper objects into the expected schema payload."""
+        if not isinstance(payload, dict):
+            return payload
+
+        for key in (
+            "scenario",
+            "scenarios",
+            "narrative",
+            "narratives",
+            "recommendation",
+            "recommendations",
+            "analysis",
+            "analyses",
+        ):
+            nested = payload.get(key)
+            if isinstance(nested, dict):
+                return nested
+            if isinstance(nested, list) and nested and isinstance(nested[0], dict):
+                return nested[0]
+
+        if response_model.__name__ == "NarrativeChunk":
+            summary = payload.get("summary") or payload.get("narrative")
+            if isinstance(summary, str):
+                tick_start = payload.get("tick_start")
+                tick_end = payload.get("tick_end")
+                return {
+                    "summary": summary,
+                    "tick_start": tick_start if isinstance(tick_start, int) else 0,
+                    "tick_end": tick_end if isinstance(tick_end, int) else 0,
+                    "evidence": (
+                        payload.get("evidence")
+                        if isinstance(payload.get("evidence"), list)
+                        else []
+                    ),
+                }
+
+        return payload
+
+
+class LLMConfigurationError(RuntimeError):
+    """Raise when the configured LLM provider credentials are unavailable."""

@@ -21,6 +21,7 @@ from src.api.run_models import (
     TickEventRecord,
     utc_now,
 )
+from src.api.run_store_support import SCHEMA_SQL, parse_json_rows
 
 
 class RunStore:
@@ -36,61 +37,7 @@ class RunStore:
 
     def _init_schema(self) -> None:
         with self._lock:
-            self._conn.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS simulation_run (
-                    run_id TEXT PRIMARY KEY,
-                    mode TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    config_json TEXT NOT NULL,
-                    parent_run_id TEXT NULL,
-                    parent_tick INTEGER NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS tick_event (
-                    run_id TEXT NOT NULL,
-                    tick INTEGER NOT NULL,
-                    scenario_json TEXT NOT NULL,
-                    requested_outcome REAL NULL,
-                    result_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    PRIMARY KEY (run_id, tick)
-                );
-
-                CREATE TABLE IF NOT EXISTS phase_annotation (
-                    run_id TEXT NOT NULL,
-                    start_tick INTEGER NOT NULL,
-                    end_tick INTEGER NULL,
-                    label TEXT NOT NULL,
-                    notes TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS agent_invocation (
-                    invocation_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    run_id TEXT NOT NULL,
-                    agent_name TEXT NOT NULL,
-                    purpose TEXT NOT NULL,
-                    input_json TEXT NOT NULL,
-                    output_json TEXT NOT NULL,
-                    raw_text TEXT NOT NULL,
-                    metadata_json TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS intervention_decision (
-                    decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    run_id TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    reason TEXT NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    applied INTEGER NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                """
-            )
+            self._conn.executescript(SCHEMA_SQL)
             self._conn.commit()
 
     def create_run(
@@ -221,14 +168,16 @@ class RunStore:
 
     def list_phases(self, run_id: str) -> list[dict[str, Any]]:
         """Return all phase annotations for a run."""
-        return self._select_json_rows(
-            """
-            SELECT start_tick, end_tick, label, notes, created_at
-            FROM phase_annotation
-            WHERE run_id = ?
-            ORDER BY start_tick ASC, created_at ASC
-            """,
-            (run_id,),
+        return parse_json_rows(
+            self._conn.execute(
+                """
+                SELECT start_tick, end_tick, label, notes, created_at
+                FROM phase_annotation
+                WHERE run_id = ?
+                ORDER BY start_tick ASC, created_at ASC
+                """,
+                (run_id,),
+            ).fetchall()
         )
 
     def append_agent_invocation(
@@ -305,14 +254,16 @@ class RunStore:
 
     def list_intervention_decisions(self, run_id: str) -> list[dict[str, Any]]:
         """Return persisted intervention decisions."""
-        return self._select_json_rows(
-            """
-            SELECT action, reason, payload_json AS payload, applied, created_at
-            FROM intervention_decision
-            WHERE run_id = ?
-            ORDER BY decision_id ASC
-            """,
-            (run_id,),
+        return parse_json_rows(
+            self._conn.execute(
+                """
+                SELECT action, reason, payload_json AS payload, applied, created_at
+                FROM intervention_decision
+                WHERE run_id = ?
+                ORDER BY decision_id ASC
+                """,
+                (run_id,),
+            ).fetchall()
         )
 
     def _insert_simple(self, query: str, params: tuple[object, ...]) -> None:
@@ -338,20 +289,3 @@ class RunStore:
             "UPDATE simulation_run SET updated_at = ? WHERE run_id = ?",
             (utc_now(), run_id),
         )
-
-    def _select_json_rows(
-        self,
-        query: str,
-        params: tuple[object, ...],
-    ) -> list[dict[str, Any]]:
-        rows = self._conn.execute(query, params).fetchall()
-        results: list[dict[str, Any]] = []
-        for row in rows:
-            item = dict(row)
-            for key, value in list(item.items()):
-                if isinstance(value, str) and value.startswith(("{", "[")):
-                    item[key] = json.loads(value)
-                if key == "applied":
-                    item[key] = bool(value)
-            results.append(item)
-        return results

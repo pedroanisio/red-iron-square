@@ -1,0 +1,344 @@
+<!--
+DISCLAIMER: No information within should be taken for granted.
+Any statement or premise not backed by a real logical definition
+or verifiable reference may be invalid, erroneous, or a hallucination.
+-->
+{% extends "ui/layout.html" %}
+
+{# ── Macros ── #}
+{% macro dimension_name(key) -%}
+  {%- if key == "O" %}Openness{% elif key == "C" %}Conscientiousness{% elif key == "E" %}Extraversion{% elif key == "A" %}Agreeableness{% elif key == "N" %}Neuroticism{% elif key == "R" %}Resilience{% elif key == "I" %}Idealism{% elif key == "T" %}Tradition{% else %}{{ key }}{% endif -%}
+{%- endmacro %}
+
+{% macro state_bar(label, value, lo, hi, color) %}
+<div class="bar-row">
+  <span class="bar-label">{{ label }}</span>
+  <div class="bar-track">
+    {% set pct = ((value - lo) / (hi - lo) * 100) | round | int %}
+    <div class="bar-fill" style="width:{{ pct }}%; background:{{ color }};"></div>
+  </div>
+  <span class="bar-val">{{ "%.2f" | format(value) }}</span>
+</div>
+{% endmacro %}
+
+{% macro emotion_tag(em) %}
+  {% set cls = "tag-green" if em.intensity > 0.5 else "tag-accent" if em.intensity > 0.2 else "tag-purple" %}
+  <span class="tag {{ cls }}" title="{{ em.description | default('') }} (intensity: {{ '%.2f' | format(em.intensity) }})">{{ em.label }}</span>
+{% endmacro %}
+
+{% block topbar_right %}
+<div style="display:flex;align-items:center;gap:12px;">
+  {% if run_id %}<span class="run-id" title="{{ run_id }}">{{ run_id }}</span>{% endif %}
+  <span class="badge {{ 'badge-ok' if api_ok else 'badge-err' }}">{{ "API Connected" if api_ok else "API Unavailable" }}</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid-main">
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    {# New Run #}
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Start a Simulation</span></div>
+      <div class="card-bd">
+        <form method="post" action="{{ url_for('create_run') }}">
+          <div class="field">
+            <label for="config_json">Personality &amp; scenario configuration</label>
+            <textarea id="config_json" name="config_json" rows="12">{{ default_run_config }}</textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Start New Run</button>
+        </form>
+        <p class="card-hint">Define personality traits (O C E A N R I T), available actions, temperature (randomness), and an optional seed for reproducibility.</p>
+      </div>
+    </div>
+
+    {# Assist Step #}
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">AI-Assisted Step</span>
+      </div>
+      <div class="card-bd">
+        <form method="post" action="{{ url_for('assist_step', run_id=run_id or '') }}">
+          <div class="field">
+            <label for="assist_goals">What would you like to explore?</label>
+            <textarea id="assist_goals" name="goals" rows="3">probe novelty
+watch emerging emotions</textarea>
+          </div>
+          <div class="field">
+            <label for="assist_window">Lookback window (recent steps to consider)</label>
+            <input type="number" id="assist_window" name="window" value="5">
+          </div>
+          <button class="btn btn-secondary" type="submit" {% if not run_id %}disabled{% endif %}>Run Assisted Step</button>
+        </form>
+        <p class="card-hint">The AI will propose a scenario that fits your goals, simulate one step, then summarize what happened.</p>
+      </div>
+    </div>
+
+    {# Intervention #}
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Request Intervention</span></div>
+      <div class="card-bd">
+        <form method="post" action="{{ url_for('intervention', run_id=run_id or '') }}">
+          <div class="field">
+            <label for="intervention_goals">What should the AI optimize for?</label>
+            <textarea id="intervention_goals" name="goals" rows="3">stabilize behavior
+reduce randomness</textarea>
+          </div>
+          <div class="field">
+            <label for="intervention_window">Lookback window</label>
+            <input type="number" id="intervention_window" name="window" value="10">
+          </div>
+          <div class="field">
+            <div class="checkbox-row">
+              <input type="checkbox" id="apply_patch" name="apply_patch">
+              <label for="apply_patch">Auto-apply recommended changes</label>
+            </div>
+          </div>
+          <button class="btn btn-secondary" type="submit" {% if not run_id %}disabled{% endif %}>Get Recommendation</button>
+        </form>
+        <p class="card-hint">The AI analyzes the trajectory and recommends an action: continue, analyze, adjust parameters, pause, or terminate.</p>
+      </div>
+    </div>
+
+    {# Manual Tick #}
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Manual Step</span></div>
+      <div class="card-bd">
+        <form method="post" action="{{ url_for('tick', run_id=run_id or '') }}">
+          <div class="field">
+            <label for="scenario_json">Scenario (which traits does this situation activate?)</label>
+            <textarea id="scenario_json" name="scenario_json" rows="5">{{ default_scenario }}</textarea>
+          </div>
+          <div class="field">
+            <label for="outcome">Force a specific outcome (-1 to 1, or leave blank)</label>
+            <input type="text" id="outcome" name="outcome" placeholder="Leave blank for stochastic outcome">
+          </div>
+          <button class="btn btn-secondary" type="submit" {% if not run_id %}disabled{% endif %}>Run Step</button>
+        </form>
+        <p class="card-hint">Manually define a scenario. The agent will choose an action based on personality, then face the outcome.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main panel ── -->
+  <div style="display:flex;flex-direction:column;gap:1.5rem;">
+    {% if not run %}
+    {# Welcome state #}
+    <div class="card">
+      <div class="card-bd" style="padding:3rem 2rem;text-align:center;">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">Personality Simulation Console</h2>
+        <p style="color:var(--text-2);max-width:520px;margin:0 auto 1.5rem;line-height:1.6;">
+          Watch how personality traits shape decisions, emotions, and behavior over time.
+          The simulation models an agent navigating scenarios&mdash;their choices are driven by
+          personality (OCEAN + Resilience, Idealism, Tradition), and emotions emerge from patterns
+          in mood, energy, and outcomes.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;text-align:left;max-width:640px;margin:0 auto;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--accent);">Start a Run</div>
+            <div style="font-size:12px;color:var(--text-3);line-height:1.5;">Configure a personality profile and available actions, then launch.</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--green);">Step Through</div>
+            <div style="font-size:12px;color:var(--text-3);line-height:1.5;">Run steps manually or let the AI propose scenarios that test your goals.</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--amber);">Observe</div>
+            <div style="font-size:12px;color:var(--text-3);line-height:1.5;">Track how mood, energy, and frustration evolve. See which emotions emerge.</div>
+          </div>
+        </div>
+        <p style="color:var(--text-3);font-size:12px;margin-top:1.5rem;">
+          Use the sidebar to start, or load an existing run with <span class="mono">?run_id=...</span>
+        </p>
+      </div>
+    </div>
+
+    {% else %}
+    {# Active run: stats + state #}
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-label">Mode</div>
+        <div class="stat-value" style="font-size:16px;">{{ "Self-Aware" if run.mode == "self_aware" else "Temporal" }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Steps</div>
+        <div class="stat-value">{{ run.tick_count }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">AI Calls</div>
+        <div class="stat-value">{{ run.agent_invocation_count }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Interventions</div>
+        <div class="stat-value">{{ run.intervention_count }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Temperature</div>
+        <div class="stat-value" style="font-size:16px;">{{ "%.2f" | format(run.config.temperature | default(1.0)) }}</div>
+      </div>
+    </div>
+
+    {# Personality profile #}
+    {% if run.config.personality %}
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Personality Profile</span></div>
+      <div class="card-bd">
+        {% for key, val in run.config.personality.items() %}
+        <div class="bar-row">
+          <span class="bar-label" title="{{ dimension_name(key) }}">{{ key }} &middot; {{ dimension_name(key) }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:{{ (val * 100) | round | int }}%;background:var(--accent);"></div>
+          </div>
+          <span class="bar-val">{{ "%.1f" | format(val) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Agent's current internal state #}
+    {% if run.latest_tick and run.latest_tick.state_after %}
+    {% set st = run.latest_tick.state_after %}
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-title">Current Internal State</span>
+        <span style="font-size:12px;color:var(--text-3);">After step {{ run.latest_tick.tick }}</span>
+      </div>
+      <div class="card-bd">
+        {{ state_bar("Mood", st.mood, -1, 1, "var(--accent)" if st.mood >= 0 else "var(--red)") }}
+        {{ state_bar("Arousal", st.arousal, 0, 1, "var(--amber)") }}
+        {{ state_bar("Energy", st.energy, 0, 1, "var(--green)") }}
+        {{ state_bar("Satisfaction", st.satisfaction, 0, 1, "var(--purple)") }}
+        {{ state_bar("Frustration", st.frustration, 0, 1, "var(--red)") }}
+
+        {% if run.latest_tick.emotions %}
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <span class="bar-label" style="width:auto;margin-bottom:8px;display:block;">Active emotions</span>
+          <div>
+            {% for em in run.latest_tick.emotions %}
+              {{ emotion_tag(em) }}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Trajectory data tabs #}
+    {% if trajectory %}
+    <div class="card" id="data-card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="ticks">Steps<span class="cnt">({{ trajectory.ticks | length }})</span></button>
+        <button class="tab-btn" data-tab="calls">AI Calls<span class="cnt">({{ trajectory.agent_invocations | length }})</span></button>
+        <button class="tab-btn" data-tab="interventions">Interventions<span class="cnt">({{ trajectory.interventions | length }})</span></button>
+      </div>
+
+      {# Steps / Ticks #}
+      <div class="tab-panel active" id="panel-ticks">
+        {% for tick in trajectory.ticks | reverse %}
+        <div class="ev">
+          <div class="ev-head">
+            <div>
+              <span class="tag tag-accent">Step {{ tick.tick }}</span>
+              {% if tick.scenario and tick.scenario.name %}
+                <span style="font-size:13px;font-weight:600;margin-left:6px;">{{ tick.scenario.name }}</span>
+              {% endif %}
+            </div>
+            <span class="mono" style="font-size:12px;color:var(--text-3);">
+              outcome: <span style="color:{{ 'var(--green)' if tick.outcome > 0 else 'var(--red)' if tick.outcome < 0 else 'var(--text-3)' }}">{{ "%.3f" | format(tick.outcome) }}</span>
+            </span>
+          </div>
+          {# Action taken #}
+          {% if tick.action %}
+          <p class="ev-desc">
+            Chose <strong>{{ tick.action.name | default(tick.action) }}</strong>
+            {% if tick.outcome > 0.3 %}&mdash; it went well.
+            {% elif tick.outcome < -0.3 %}&mdash; it did not go as hoped.
+            {% else %}&mdash; the result was mixed.
+            {% endif %}
+          </p>
+          {% endif %}
+          {# Emotions #}
+          {% if tick.emotions %}
+          <div style="margin-bottom:8px;">
+            {% for em in tick.emotions %}{{ emotion_tag(em) }}{% endfor %}
+          </div>
+          {% endif %}
+          {# State snapshot #}
+          {% if tick.state_after %}
+          <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;font-family:var(--mono);color:var(--text-3);">
+            <span>mood {{ "%.2f" | format(tick.state_after.mood) }}</span>
+            <span>energy {{ "%.2f" | format(tick.state_after.energy) }}</span>
+            <span>frustration {{ "%.2f" | format(tick.state_after.frustration) }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="empty">No steps yet. Use the sidebar to add a manual or AI-assisted step.</div>
+        {% endfor %}
+      </div>
+
+      {# AI Calls #}
+      <div class="tab-panel" id="panel-calls">
+        {% for call in trajectory.agent_invocations %}
+        <div class="ev">
+          <div class="ev-head">
+            <span class="tag tag-amber">{{ call.agent_name | replace("_", " ") | title }}</span>
+            {% if call.metadata and call.metadata.model %}
+            <span class="mono" style="font-size:11px;color:var(--text-3);">{{ call.metadata.model }}</span>
+            {% endif %}
+          </div>
+          <p class="ev-desc">{{ call.purpose | replace("_", " ") | title }}</p>
+          {% if call.output %}
+          <pre>{{ call.output | tojson(indent=2) }}</pre>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="empty">No AI calls recorded yet. Run an assisted step or request an intervention.</div>
+        {% endfor %}
+      </div>
+
+      {# Interventions #}
+      <div class="tab-panel" id="panel-interventions">
+        {% for item in trajectory.interventions %}
+        <div class="ev">
+          <div class="ev-head">
+            <span class="tag tag-green">{{ item.action | replace("_", " ") | title }}</span>
+            <span class="badge {{ 'badge-ok' if item.applied else 'badge-err' }}" style="font-size:11px;">
+              {{ "Applied" if item.applied else "Not applied" }}
+            </span>
+          </div>
+          <p class="ev-desc">{{ item.reason }}</p>
+          {% if item.payload %}
+          <pre>{{ item.payload | tojson(indent=2) }}</pre>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="empty">No interventions yet. Request one to get AI recommendations.</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = btn.closest('#data-card');
+      card.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      card.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      card.querySelector('#panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+  setTimeout(function() {
+    var c = document.querySelector('.toast-wrap');
+    if (c) c.style.display = 'none';
+  }, 5000);
+</script>
+{% endblock %}

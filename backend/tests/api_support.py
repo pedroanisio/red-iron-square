@@ -7,6 +7,8 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -70,10 +72,18 @@ class FakeAgentRuntime:
 
 def make_client(test_name: str) -> TestClient:
     """Build an isolated API client for one test."""
-    database_path = Path("/tmp") / f"{test_name}.sqlite3"
-    if database_path.exists():
-        database_path.unlink()
-    return TestClient(create_app(str(database_path), agent_runtime=FakeAgentRuntime()))
+    return TestClient(
+        create_app(make_database_path(test_name), agent_runtime=FakeAgentRuntime())
+    )
+
+
+def make_database_path(test_name: str) -> str:
+    """Reserve one unique SQLite path for a test case."""
+    fd, raw_path = tempfile.mkstemp(suffix=".sqlite3", prefix=f"{test_name}-")
+    os.close(fd)
+    database_path = Path(raw_path)
+    database_path.unlink(missing_ok=True)
+    return str(database_path)
 
 
 def create_base_run(client: TestClient) -> str:
