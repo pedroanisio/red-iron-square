@@ -150,6 +150,25 @@ def create_ui_app(api_client: ApiClient | None = None) -> Flask:
         )
         return response
 
+    @app.post("/runs/<run_id>/orchestrate")
+    @_flash_on_error("Orchestration failed")
+    def orchestrate_run(run_id: str) -> Any:
+        """Run orchestration cycles."""
+        cycles = int(request.form.get("cycles", "1"))
+        goals = _parse_lines(request.form.get("goals", ""))
+        client.orchestrate(run_id, {"cycles": cycles, "goals": goals})
+        flash(f"Ran {cycles} orchestration cycle(s).", "success")
+        return redirect(url_for("index", run_id=run_id))
+
+    @app.post("/runs/<run_id>/resume")
+    @_flash_on_error("Resume failed")
+    def resume_run(run_id: str) -> Any:
+        """Resume a paused run."""
+        goals = _parse_lines(request.form.get("goals", ""))
+        client.resume_run(run_id, {"goals": goals})
+        flash("Run resumed.", "success")
+        return redirect(url_for("index", run_id=run_id))
+
     @app.get("/campaigns")
     def campaigns() -> str:
         """Render campaign management page."""
@@ -229,6 +248,7 @@ def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
     api_ok = False
     run = None
     trajectory = None
+    orchestrator_log: list[dict[str, Any]] = []
     recent_runs: list[RunListItem] = []
     if run_id:
         session["run_id"] = run_id
@@ -245,6 +265,7 @@ def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
             try:
                 run = client.get_run(run_id)
                 trajectory = client.get_trajectory(run_id)
+                orchestrator_log = client.orchestrator_log(run_id)
             except _KNOWN_ERRORS:
                 run = None
                 trajectory = None
@@ -253,6 +274,7 @@ def _build_context(client: ApiClient, run_id: str | None) -> dict[str, Any]:
         "run_id": run_id,
         "run": run,
         "trajectory": trajectory,
+        "orchestrator_log": orchestrator_log,
         "recent_runs": recent_runs,
         "default_run_config": json.dumps(DEFAULT_RUN_CONFIG, indent=2),
         "default_scenario": json.dumps(

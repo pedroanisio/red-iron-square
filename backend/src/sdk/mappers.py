@@ -8,6 +8,7 @@ import numpy as np
 
 from src.personality.dimensions import DimensionRegistry
 from src.personality.vectors import Action
+from src.precision.state import PrecisionSnapshot, PredictionErrorSnapshot
 from src.self_model.simulator import SelfAwareTickResult
 from src.temporal.emotions import EmotionReading
 from src.temporal.simulator import TickResult
@@ -50,7 +51,7 @@ def tick_result_to_payload(
     registry: DimensionRegistry,
 ) -> dict[str, Any]:
     """Serialize a temporal tick result."""
-    return {
+    payload: dict[str, Any] = {
         "tick": result.tick,
         "scenario": {
             "name": result.scenario.name,
@@ -65,6 +66,15 @@ def tick_result_to_payload(
         "emotions": emotion_readings_to_payload(result.emotions),
         "probabilities": [float(value) for value in result.probabilities.tolist()],
     }
+    if result.precision is not None:
+        payload["precision"] = PrecisionSnapshot.from_state(
+            result.precision
+        ).model_dump()
+    if result.prediction_errors is not None:
+        payload["prediction_errors"] = PredictionErrorSnapshot.from_errors(
+            result.prediction_errors
+        ).model_dump()
+    return payload
 
 
 def self_aware_tick_result_to_payload(

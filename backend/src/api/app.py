@@ -18,6 +18,9 @@ from src.api.run_service import RunService
 from src.api.run_store import RunStore
 from src.api.simulation_router import create_simulation_router
 from src.llm import AgentRuntime
+from src.orchestrator.controller import MetaController
+from src.orchestrator.router import create_orchestrator_router
+from src.orchestrator.store import OrchestratorStore
 
 
 def create_app(
@@ -40,7 +43,10 @@ def create_app(
         CampaignStore(resolved_db_path),
         run_service,
     )
+    orchestrator_store = OrchestratorStore(resolved_db_path)
+    controller = MetaController(run_service, orchestrator_store, agent_runtime)
     app.include_router(create_simulation_router())
     app.include_router(create_run_router(run_service, agent_runtime))
     app.include_router(create_campaign_router(campaign_service))
+    app.include_router(create_orchestrator_router(controller))
     return app

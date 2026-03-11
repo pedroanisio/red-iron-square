@@ -10,6 +10,8 @@ from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DEFAULT_DIMENSIONS, Dimension, DimensionRegistry
 from src.personality.hyperparameters import HyperParameters, ResilienceMode
 from src.personality.vectors import Action, PersonalityVector, Scenario
+from src.precision.engine import PrecisionEngine
+from src.precision.params import PrecisionParams
 from src.sdk.builders import (
     build_action,
     build_initial_self_model,
@@ -38,6 +40,7 @@ class AgentSDK:
         *,
         hyperparameters: HyperParameters | None = None,
         resilience_mode: ResilienceMode = ResilienceMode.ACTIVATION,
+        precision_engine: PrecisionEngine | None = None,
     ) -> None:
         self.registry = registry or build_registry()
         self.engine = DecisionEngine(
@@ -45,11 +48,17 @@ class AgentSDK:
             hyperparameters=hyperparameters or HyperParameters(),
             resilience_mode=resilience_mode,
         )
+        self._precision_engine = precision_engine
 
     @classmethod
     def default(cls) -> AgentSDK:
         """Create the default OCEAN+RIT SDK."""
         return cls()
+
+    @classmethod
+    def with_precision(cls, params: PrecisionParams | None = None) -> AgentSDK:
+        """Create the default SDK with precision tracking enabled."""
+        return cls(precision_engine=PrecisionEngine(params))
 
     @classmethod
     def from_dimensions(cls, dimensions: Sequence[Dimension]) -> AgentSDK:
@@ -121,6 +130,8 @@ class AgentSDK:
         **simulator_kwargs: object,
     ) -> TemporalSimulationClient:
         """Create a temporal simulation client."""
+        if self._precision_engine and "precision_engine" not in simulator_kwargs:
+            simulator_kwargs["precision_engine"] = self._precision_engine
         return TemporalSimulationClient(
             personality,
             actions,
@@ -137,6 +148,8 @@ class AgentSDK:
         **simulator_kwargs: object,
     ) -> SelfModelSimulationClient:
         """Create a self-aware simulation client."""
+        if self._precision_engine and "precision_engine" not in simulator_kwargs:
+            simulator_kwargs["precision_engine"] = self._precision_engine
         return SelfModelSimulationClient(
             personality,
             initial_self_model,
@@ -151,6 +164,8 @@ __all__ = [
     "AgentSDK",
     "DEFAULT_DIMENSIONS",
     "DecisionResult",
+    "PrecisionEngine",
+    "PrecisionParams",
     "SelfAwareSimulationTrace",
     "SelfAwareTickRecord",
     "SimulationTrace",

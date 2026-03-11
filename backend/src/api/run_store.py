@@ -270,6 +270,10 @@ class RunStore:
             self._touch_run(str(params[0]))
             self._conn.commit()
 
+    def update_run_status(self, run_id: str, status: str) -> None:
+        """Update the status of a run."""
+        self._update_run(run_id, status=status)
+
     def _update_run(self, run_id: str, **fields: object) -> None:
         assignments = ", ".join(f"{key} = ?" for key in fields)
         values = [*fields.values(), utc_now(), run_id]

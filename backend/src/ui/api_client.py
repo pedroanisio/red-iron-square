@@ -112,6 +112,32 @@ class ApiClient:
         )["data"]
         return data
 
+    def orchestrate(self, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Run orchestration cycles."""
+        data: dict[str, Any] = self._request(
+            "POST",
+            f"/runs/{run_id}/orchestrate",
+            payload,
+        )["data"]
+        return data
+
+    def orchestrator_log(self, run_id: str) -> list[dict[str, Any]]:
+        """Fetch orchestrator decision log."""
+        data: list[dict[str, Any]] = self._request(
+            "GET",
+            f"/runs/{run_id}/orchestrator-log",
+        )["data"]
+        return data
+
+    def resume_run(self, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Resume a paused run."""
+        data: dict[str, Any] = self._request(
+            "POST",
+            f"/runs/{run_id}/resume",
+            payload,
+        )["data"]
+        return data
+
     def _request(
         self,
         method: str,

@@ -29,6 +29,8 @@ class TickRecord(BaseModel):
     activations: dict[str, float]
     emotions: list[dict[str, Any]]
     probabilities: list[float]
+    precision: dict[str, Any] | None = None
+    prediction_errors: dict[str, Any] | None = None
 
 
 class SimulationTrace(BaseModel):

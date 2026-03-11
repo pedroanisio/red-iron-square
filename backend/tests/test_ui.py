@@ -213,6 +213,25 @@ class FakeUiClient:
             "updated_at": "now",
         }
 
+    def orchestrate(self, run_id: str, payload: dict[str, object]) -> dict[str, object]:
+        """Return a stub orchestration result."""
+        return {"cycle": 0, "action_type": "scenario", "result": {}}
+
+    def orchestrator_log(self, run_id: str) -> list[dict[str, object]]:
+        """Return sample orchestrator decisions."""
+        return [
+            {
+                "cycle": 0,
+                "action_type": "scenario",
+                "rationale": "Auto-step",
+                "created_at": "now",
+            },
+        ]
+
+    def resume_run(self, run_id: str, payload: dict[str, object]) -> dict[str, object]:
+        """Return a stub resume result."""
+        return {}
+
 
 def test_friendly_error_maps_json_error() -> None:
     """Known exception types produce user-friendly messages."""
@@ -500,3 +519,54 @@ def test_ui_models_are_importable() -> None:
     assert "tick" in TickData.__annotations__
     assert "agent_name" in AgentInvocation.__annotations__
     assert "action" in InterventionDecision.__annotations__
+
+
+def test_orchestrator_controls_visible() -> None:
+    """Orchestrator controls render for active runs."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+
+    assert b"Orchestrator" in response.data
+    assert b"Run Orchestrator" in response.data
+
+
+def test_orchestrator_log_tab_visible() -> None:
+    """Orchestrator log tab renders."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/?run_id=run-123")
+
+    assert b"tab-orch" in response.data
+
+
+def test_orchestrate_post_redirects() -> None:
+    """Orchestrate route runs cycles and redirects."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post(
+        "/runs/run-123/orchestrate",
+        data={"cycles": "3", "goals": "explore\ntest"},
+    )
+
+    assert response.status_code == 302
+
+
+def test_resume_post_redirects() -> None:
+    """Resume route resumes a paused run and redirects."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post(
+        "/runs/run-123/resume",
+        data={"goals": "continue exploring"},
+    )
+
+    assert response.status_code == 302

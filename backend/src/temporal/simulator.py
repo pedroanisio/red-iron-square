@@ -1,17 +1,24 @@
 """Temporal simulator: the main tick loop integrating state, memory, and emotions."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
 from src.personality.decision import DecisionEngine
 from src.personality.vectors import Action, PersonalityVector, Scenario
+from src.precision.state import PrecisionState, PredictionErrors
 from src.shared.logging import get_logger
 from src.temporal.affective_engine import AffectiveEngine
 from src.temporal.emotions import EmotionReading, EmotionThresholds
 from src.temporal.memory import MemoryBank, MemoryEntry
 from src.temporal.state import AgentState, StateTransitionParams, update_state
+
+if TYPE_CHECKING:
+    from src.precision.engine import PrecisionEngine
 
 _log = get_logger(module="temporal.simulator")
 
@@ -30,6 +37,8 @@ class TickResult(BaseModel):
     activations: np.ndarray
     emotions: list[EmotionReading]
     probabilities: np.ndarray
+    precision: PrecisionState | None = None
+    prediction_errors: PredictionErrors | None = None
 
 
 class TemporalSimulator:
@@ -45,6 +54,7 @@ class TemporalSimulator:
         7. Compute action effort and update state
         8. Store memory
         9. Detect emotions
+        10. (Optional) Compute shadow precision and prediction errors
     """
 
     WITHDRAW_ACTION_NAME = "Withdraw"
@@ -61,6 +71,7 @@ class TemporalSimulator:
         memory_size: int = 500,
         temperature: float = 1.0,
         rng: np.random.Generator | None = None,
+        precision_engine: PrecisionEngine | None = None,
     ) -> None:
         self.personality = personality
         self.actions = list(actions)
@@ -73,6 +84,7 @@ class TemporalSimulator:
         self.temperature = temperature
         self.rng = rng or np.random.default_rng()
         self._tick_counter = 0
+        self._precision_engine = precision_engine
 
     def _compute_modulated_activations(self, scenario: Scenario) -> np.ndarray:
         """Compute raw activations gated by energy."""
@@ -166,6 +178,18 @@ class TemporalSimulator:
         )
         self.memory.store(entry)
 
+    def _compute_precision(
+        self,
+        state: AgentState,
+        scenario: Scenario,
+    ) -> tuple[PrecisionState | None, PredictionErrors | None]:
+        """Compute shadow precision and prediction errors if engine present."""
+        if self._precision_engine is None:
+            return None, None
+        precision = self._precision_engine.compute(self.personality, state, scenario)
+        errors = self._precision_engine.compute_errors(state, self.personality)
+        return precision, errors
+
     def tick(self, scenario: Scenario, outcome: float | None = None) -> TickResult:
         """Execute one simulation tick."""
         state_before = self.state.snapshot()
@@ -222,6 +246,8 @@ class TemporalSimulator:
             is_still_acting=is_acting,
         )
 
+        precision, pred_errors = self._compute_precision(new_state, scenario)
+
         self.state = new_state
         self._tick_counter += 1
 
@@ -255,6 +281,8 @@ class TemporalSimulator:
             activations=activations,
             emotions=emotions,
             probabilities=probs,
+            precision=precision,
+            prediction_errors=pred_errors,
         )
 
     @property

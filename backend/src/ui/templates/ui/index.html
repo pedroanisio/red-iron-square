@@ -89,6 +89,10 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 {% endif %}
 {% endmacro %}
 
+{% set traits = ["O", "C", "E", "A", "N", "R", "I", "T"] %}
+{% set cfg_defaults = {"O": 0.8, "C": 0.5, "E": 0.3, "A": 0.7, "N": 0.4, "R": 0.9, "I": 0.6, "T": 0.2} %}
+{% set scn_defaults = {"O": 0.8, "N": 0.3} %}
+
 {% block topbar_right %}
 <div style="display:flex;align-items:center;gap:12px;">
   {% if run_id %}<span class="run-id" title="{{ run_id }}">{{ run_id }}</span>{% endif %}
@@ -124,15 +128,57 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     <div class="card">
       <div class="card-hd" data-collapse><span class="card-title">Start Simulation</span></div>
       <div class="card-bd">
-        <form method="post" action="{{ url_for('create_run') }}">
-          <div class="field">
-            <label for="config_json">Personality &amp; scenario config</label>
-            <textarea id="config_json" name="config_json" rows="12" data-validate-json>{{ default_run_config }}</textarea>
-            <div class="field-msg" role="alert"></div>
+        <form method="post" action="{{ url_for('create_run') }}" id="create-run-form">
+          <input type="hidden" name="config_json" id="config_json_hidden">
+          <div class="form-toggle">
+            <button type="button" class="btn-link" id="toggle-config-mode">Show raw JSON</button>
+          </div>
+          <div id="visual-config">
+            <div class="form-section">
+              <div class="form-section-title">Personality Profile</div>
+              {% for key in traits %}
+              <div class="trait-row">
+                <div class="trait-info">
+                  <span class="trait-name">{{ dimension_name(key) }}</span>
+                  <span class="trait-desc">{{ dimension_tip(key) }}</span>
+                </div>
+                <input type="range" min="0" max="1" step="0.1" value="{{ cfg_defaults[key] }}" data-trait="{{ key }}" class="cfg-trait">
+                <span class="trait-val-display">{{ "%.1f" | format(cfg_defaults[key]) }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Actions the agent can take</div>
+              <div id="action-list">
+                <div class="action-entry"><input type="text" value="bold" class="action-name" placeholder="Action name"><button type="button" class="action-remove" title="Remove">&times;</button></div>
+                <div class="action-entry"><input type="text" value="safe" class="action-name" placeholder="Action name"><button type="button" class="action-remove" title="Remove">&times;</button></div>
+              </div>
+              <button type="button" class="btn-link" id="add-action-btn">+ Add action</button>
+              <p class="card-hint" style="margin-top:4px;">Name the choices available to the agent.</p>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Settings</div>
+              <div class="settings-row">
+                <div class="field">
+                  <label for="cfg_temp">Temperature <span title="Higher = more random decisions. Lower = more predictable." style="cursor:help;opacity:.6;">[?]</span></label>
+                  <input type="number" id="cfg_temp" step="0.1" min="0" max="3" value="1.0">
+                </div>
+                <div class="field">
+                  <label for="cfg_seed">Seed <span title="Fixed number for reproducible results." style="cursor:help;opacity:.6;">[?]</span></label>
+                  <input type="number" id="cfg_seed" min="0" value="42">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="raw-config" style="display:none;">
+            <div class="field">
+              <label for="config_json_raw">Raw JSON</label>
+              <textarea id="config_json_raw" rows="14" data-validate-json>{{ default_run_config }}</textarea>
+              <div class="field-msg" role="alert"></div>
+            </div>
           </div>
           <button class="btn btn-primary" type="submit">Launch Run</button>
         </form>
-        <p class="card-hint">Define personality traits (O C E A N R I T), available actions, temperature, and an optional seed.</p>
       </div>
     </div>
 
@@ -183,19 +229,42 @@ reduce randomness</textarea>
     <div class="card">
       <div class="card-hd" data-collapse><span class="card-title">Manual Step</span></div>
       <div class="card-bd">
-        <form method="post" action="{{ url_for('tick', run_id=run_id or '') }}">
-          <div class="field">
-            <label for="scenario_json">Scenario <span title="Which personality traits does this situation activate? Values are weights from 0 to 1." style="cursor:help;opacity:.6;">[?]</span></label>
-            <textarea id="scenario_json" name="scenario_json" rows="5" data-validate-json>{{ default_scenario }}</textarea>
-            <div class="field-msg" role="alert"></div>
+        <form method="post" action="{{ url_for('tick', run_id=run_id or '') }}" id="manual-step-form">
+          <input type="hidden" name="scenario_json" id="scenario_json_hidden">
+          <div class="form-toggle">
+            <button type="button" class="btn-link" id="toggle-scenario-mode">Show raw JSON</button>
+          </div>
+          <div id="visual-scenario">
+            <div class="field">
+              <label for="scenario_name">Scenario name</label>
+              <input type="text" id="scenario_name" value="manual_probe" placeholder="Give this scenario a name">
+            </div>
+            <div class="form-section" style="margin-top:14px;">
+              <div class="form-section-title">Which traits does this situation test?</div>
+              <p class="card-hint" style="margin-top:0;margin-bottom:10px;">Slide right to activate. Most scenarios test 2-3 traits.</p>
+              {% for key in traits %}
+              <div class="trait-row">
+                <div class="trait-info"><span class="trait-name">{{ dimension_name(key) }}</span></div>
+                <input type="range" min="0" max="1" step="0.1" value="{{ scn_defaults.get(key, 0) }}" data-strait="{{ key }}" class="scn-trait">
+                <span class="trait-val-display">{{ "%.1f" | format(scn_defaults.get(key, 0)) }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div id="raw-scenario" style="display:none;">
+            <div class="field">
+              <label for="scenario_json_raw">Raw JSON</label>
+              <textarea id="scenario_json_raw" rows="5" data-validate-json>{{ default_scenario }}</textarea>
+              <div class="field-msg" role="alert"></div>
+            </div>
           </div>
           <div class="field">
-            <label for="outcome">Force outcome <span title="A value from -1 (bad) to 1 (good). Leave blank for a random outcome based on personality." style="cursor:help;opacity:.6;">[?]</span></label>
-            <input type="number" id="outcome" name="outcome" step="0.1" min="-1" max="1" placeholder="Blank = stochastic">
+            <label for="outcome">Force outcome <span title="From -1 (bad) to 1 (good). Leave blank for random." style="cursor:help;opacity:.6;">[?]</span></label>
+            <input type="number" id="outcome" name="outcome" step="0.1" min="-1" max="1" placeholder="Blank = random">
           </div>
           <button class="btn btn-secondary" type="submit" {% if not run_id %}disabled title="Select or create a run first"{% endif %}>Execute Step</button>
         </form>
-        <p class="card-hint">Define a scenario manually. The agent chooses an action based on personality, then faces the outcome.</p>
+        <p class="card-hint">The agent faces this situation and chooses based on its personality.</p>
       </div>
     </div>
   </nav>
@@ -326,6 +395,33 @@ reduce randomness</textarea>
       </div>
     </div>
 
+    {# Orchestrator Controls #}
+    <div class="card">
+      <h3 style="font-family:'Archivo Black',sans-serif;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:.75rem;">
+        Orchestrator
+      </h3>
+      {% if run.status == 'paused' %}
+      <form method="post" action="/runs/{{ run_id }}/resume" style="margin-bottom:.75rem;">
+        <label style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;">Goals (optional)</label>
+        <textarea name="goals" rows="2" style="width:100%;padding:.4rem;margin:.25rem 0 .5rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;resize:vertical;"></textarea>
+        <button type="submit" class="btn" style="width:100%;background:var(--success);">Resume Run</button>
+      </form>
+      {% else %}
+      <form method="post" action="/runs/{{ run_id }}/orchestrate">
+        <div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
+          <div style="flex:1;">
+            <label for="orch-cycles" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;">Cycles</label>
+            <input type="number" id="orch-cycles" name="cycles" value="1" min="1" max="50"
+                   style="width:100%;padding:.4rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;">
+          </div>
+        </div>
+        <label style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;">Goals (optional)</label>
+        <textarea name="goals" rows="2" style="width:100%;padding:.4rem;margin:.25rem 0 .5rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;resize:vertical;"></textarea>
+        <button type="submit" class="btn" style="width:100%;">Run Orchestrator</button>
+      </form>
+      {% endif %}
+    </div>
+
     {% if trajectory and trajectory.ticks | length >= 2 %}
     <div class="card">
       <div class="card-hd"><span class="card-title">Trajectory</span></div>
@@ -396,6 +492,7 @@ reduce randomness</textarea>
         <button class="tab-btn" role="tab" aria-selected="true" aria-controls="panel-ticks" id="tab-ticks" data-tab="ticks">Steps<span class="cnt">({{ trajectory.ticks | length }})</span></button>
         <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-calls" id="tab-calls" data-tab="calls" tabindex="-1">AI Calls<span class="cnt">({{ trajectory.agent_invocations | length }})</span></button>
         <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-interventions" id="tab-interventions" data-tab="interventions" tabindex="-1">Interventions<span class="cnt">({{ trajectory.interventions | length }})</span></button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-orch" id="tab-orch" data-tab="orch" tabindex="-1">Orchestrator<span class="cnt">({{ orchestrator_log | length }})</span></button>
       </div>
 
       <div class="tab-panel" role="tabpanel" aria-labelledby="tab-ticks" id="panel-ticks">
@@ -469,6 +566,18 @@ reduce randomness</textarea>
         <div class="empty">No interventions yet &mdash; request one to get AI recommendations.</div>
         {% endfor %}
       </div>
+
+      <div class="tab-panel" role="tabpanel" aria-labelledby="tab-orch" id="panel-orch" hidden>
+        {% for d in orchestrator_log %}
+        <div style="padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.8rem;">
+          <span style="font-family:'DM Mono',monospace;color:var(--mono);">Cycle {{ d.cycle }}</span>
+          <span style="color:var(--text-3);margin-left:.5rem;">{{ d.action_type }}</span>
+          {% if d.rationale %}<p style="color:var(--text-2);font-size:.75rem;margin:.25rem 0 0;">{{ d.rationale }}</p>{% endif %}
+        </div>
+        {% else %}
+        <div class="empty">No orchestrator decisions yet.</div>
+        {% endfor %}
+      </div>
     </div>
     {% endif %}
     {% endif %}
@@ -515,6 +624,169 @@ reduce randomness</textarea>
         window.confirmAction('Auto-apply will modify simulation parameters immediately. This cannot be undone.', function() { form.submit(); });
       }
     });
+  })();
+  /* Visual form builder — assembles sliders into hidden JSON fields */
+  (function() {
+    var storedActions = [
+      {name: 'bold', modifiers: {O: 1.0, R: 0.8, N: -0.3}},
+      {name: 'safe', modifiers: {C: 0.9, T: 0.8}}
+    ];
+    var configMode = 'visual', scenarioMode = 'visual';
+
+    /* Live slider value display */
+    document.addEventListener('input', function(e) {
+      if (e.target.type === 'range') {
+        var disp = e.target.nextElementSibling;
+        if (disp && disp.classList.contains('trait-val-display'))
+          disp.textContent = parseFloat(e.target.value).toFixed(1);
+      }
+    });
+
+    /* ── Config form (Start Simulation) ── */
+    function buildConfig() {
+      var personality = {};
+      document.querySelectorAll('.cfg-trait').forEach(function(s) {
+        personality[s.dataset.trait] = parseFloat(s.value);
+      });
+      var actions = [];
+      document.querySelectorAll('.action-name').forEach(function(inp, i) {
+        var name = inp.value.trim();
+        if (!name) return;
+        var mods = (storedActions[i]) ? storedActions[i].modifiers : autoModifiers(name);
+        actions.push({name: name, modifiers: mods});
+      });
+      return {
+        personality: personality,
+        actions: actions,
+        temperature: parseFloat(document.getElementById('cfg_temp').value) || 1.0,
+        seed: parseInt(document.getElementById('cfg_seed').value) || 42
+      };
+    }
+
+    function autoModifiers(name) {
+      var all = ['O','C','E','A','N','R','I','T'], mods = {}, h = 0;
+      for (var i = 0; i < name.length; i++) h = ((h << 5) - h) + name.charCodeAt(i);
+      h = Math.abs(h);
+      for (var j = 0; j < 2 + (h % 2); j++) mods[all[(h + j * 3) % 8]] = 0.8;
+      return mods;
+    }
+
+    function loadConfigToVisual(cfg) {
+      if (cfg.personality) {
+        document.querySelectorAll('.cfg-trait').forEach(function(s) {
+          var v = cfg.personality[s.dataset.trait];
+          if (v !== undefined) { s.value = v; s.nextElementSibling.textContent = parseFloat(v).toFixed(1); }
+        });
+      }
+      if (cfg.actions) {
+        storedActions = cfg.actions;
+        var list = document.getElementById('action-list');
+        list.innerHTML = '';
+        cfg.actions.forEach(function(a) { addActionRow(a.name); });
+      }
+      if (cfg.temperature !== undefined) document.getElementById('cfg_temp').value = cfg.temperature;
+      if (cfg.seed !== undefined) document.getElementById('cfg_seed').value = cfg.seed;
+    }
+
+    /* Toggle visual ↔ raw JSON */
+    var toggleCfg = document.getElementById('toggle-config-mode');
+    if (toggleCfg) {
+      toggleCfg.addEventListener('click', function() {
+        var vis = document.getElementById('visual-config'), raw = document.getElementById('raw-config');
+        if (configMode === 'visual') {
+          document.getElementById('config_json_raw').value = JSON.stringify(buildConfig(), null, 2);
+          vis.style.display = 'none'; raw.style.display = '';
+          toggleCfg.textContent = 'Switch to visual editor';
+          configMode = 'raw';
+        } else {
+          try { loadConfigToVisual(JSON.parse(document.getElementById('config_json_raw').value)); } catch(e) {}
+          vis.style.display = ''; raw.style.display = 'none';
+          toggleCfg.textContent = 'Show raw JSON';
+          configMode = 'visual';
+        }
+      });
+    }
+
+    /* Action list add/remove */
+    function addActionRow(name) {
+      var list = document.getElementById('action-list'), div = document.createElement('div');
+      div.className = 'action-entry';
+      div.innerHTML = '<input type="text" value="' + (name || '') + '" class="action-name" placeholder="Action name"><button type="button" class="action-remove" title="Remove">&times;</button>';
+      list.appendChild(div);
+    }
+    var addBtn = document.getElementById('add-action-btn');
+    if (addBtn) addBtn.addEventListener('click', function() { addActionRow(''); });
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('action-remove')) e.target.closest('.action-entry').remove();
+    });
+
+    /* Submit — assemble JSON into hidden field */
+    var createForm = document.getElementById('create-run-form');
+    if (createForm) {
+      createForm.addEventListener('submit', function(e) {
+        var hidden = document.getElementById('config_json_hidden');
+        if (configMode === 'visual') {
+          hidden.value = JSON.stringify(buildConfig());
+        } else {
+          var raw = document.getElementById('config_json_raw').value;
+          try { JSON.parse(raw); hidden.value = raw; }
+          catch(err) { e.preventDefault(); return; }
+        }
+      });
+    }
+
+    /* ── Scenario form (Manual Step) ── */
+    function buildScenario() {
+      var values = {};
+      document.querySelectorAll('.scn-trait').forEach(function(s) {
+        var v = parseFloat(s.value);
+        if (v > 0) values[s.dataset.strait] = v;
+      });
+      return {
+        name: document.getElementById('scenario_name').value || 'manual_probe',
+        values: values
+      };
+    }
+
+    function loadScenarioToVisual(scn) {
+      if (scn.name) document.getElementById('scenario_name').value = scn.name;
+      document.querySelectorAll('.scn-trait').forEach(function(s) {
+        var v = (scn.values && scn.values[s.dataset.strait]) || 0;
+        s.value = v; s.nextElementSibling.textContent = parseFloat(v).toFixed(1);
+      });
+    }
+
+    var toggleScn = document.getElementById('toggle-scenario-mode');
+    if (toggleScn) {
+      toggleScn.addEventListener('click', function() {
+        var vis = document.getElementById('visual-scenario'), raw = document.getElementById('raw-scenario');
+        if (scenarioMode === 'visual') {
+          document.getElementById('scenario_json_raw').value = JSON.stringify(buildScenario(), null, 2);
+          vis.style.display = 'none'; raw.style.display = '';
+          toggleScn.textContent = 'Switch to visual editor';
+          scenarioMode = 'raw';
+        } else {
+          try { loadScenarioToVisual(JSON.parse(document.getElementById('scenario_json_raw').value)); } catch(e) {}
+          vis.style.display = ''; raw.style.display = 'none';
+          toggleScn.textContent = 'Show raw JSON';
+          scenarioMode = 'visual';
+        }
+      });
+    }
+
+    var stepForm = document.getElementById('manual-step-form');
+    if (stepForm) {
+      stepForm.addEventListener('submit', function(e) {
+        var hidden = document.getElementById('scenario_json_hidden');
+        if (scenarioMode === 'visual') {
+          hidden.value = JSON.stringify(buildScenario());
+        } else {
+          var raw = document.getElementById('scenario_json_raw').value;
+          try { JSON.parse(raw); hidden.value = raw; }
+          catch(err) { e.preventDefault(); return; }
+        }
+      });
+    }
   })();
 </script>
 {% endblock %}
