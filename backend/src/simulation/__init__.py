@@ -1,0 +1,38 @@
+from src.simulation.personality_framework import (
+    Dimension,
+    DimensionRegistry,
+    PersonalityVector,
+    Scenario,
+    Action,
+    HyperParameters,
+    ResilienceMode,
+    ActivationFunctions,
+    DecisionEngine,
+    DEFAULT_DIMENSIONS,
+    DEFAULT_ACTIVATION_REGISTRY,
+    compute_activation_batch,
+)
+from src.simulation.temporal_engine import (
+    AgentState,
+    StateTransitionParams,
+    update_state,
+    MemoryEntry,
+    MemoryBank,
+    EmotionLabel,
+    EmotionReading,
+    EmotionThresholds,
+    AffectiveEngine,
+    TickResult,
+    TemporalSimulator,
+    generate_scenario_sequence,
+    generate_outcome_sequence,
+)
+from src.simulation.self_model import (
+    SelfModelParams,
+    SelfModel,
+    SelfEmotionLabel,
+    SelfEmotionReading,
+    SelfEmotionDetector,
+    SelfAwareTickResult,
+    SelfAwareSimulator,
+)
