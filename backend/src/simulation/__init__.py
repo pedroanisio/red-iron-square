@@ -1,18 +1,20 @@
-from src.simulation.personality_framework import (
+"""Facade: re-exports the full public API from all bounded contexts."""
+
+from src.personality import (
     Dimension,
     DimensionRegistry,
+    DEFAULT_DIMENSIONS,
     PersonalityVector,
     Scenario,
     Action,
     HyperParameters,
     ResilienceMode,
     ActivationFunctions,
-    DecisionEngine,
-    DEFAULT_DIMENSIONS,
     DEFAULT_ACTIVATION_REGISTRY,
+    DecisionEngine,
     compute_activation_batch,
 )
-from src.simulation.temporal_engine import (
+from src.temporal import (
     AgentState,
     StateTransitionParams,
     update_state,
@@ -27,7 +29,7 @@ from src.simulation.temporal_engine import (
     generate_scenario_sequence,
     generate_outcome_sequence,
 )
-from src.simulation.self_model import (
+from src.self_model import (
     SelfModelParams,
     SelfModel,
     SelfEmotionLabel,

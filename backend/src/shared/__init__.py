@@ -1,0 +1,4 @@
+"""Shared kernel: cross-cutting validators and base types."""
+
+from src.shared.validators import validate_unit_interval, validate_real
+from src.shared.types import DimensionVector
