@@ -1,6 +1,6 @@
 ---
 name: ux-audit-rethink
-description: Comprehensive UX audit using IxDF's 7 factors, 5 usability characteristics, and 5 interaction dimensions. Holistic evaluation with redesign proposals based on user-centered design principles.
+description: Run a holistic UX audit using IxDF-style factors, usability characteristics, and interaction dimensions. Use for product reviews, redesign proposals, and broad user-experience evaluation rather than narrow bug-level UI feedback.
 ---
 
 # UX Audit and Rethink

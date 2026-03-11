@@ -9,11 +9,12 @@ This backlog turns the current architecture direction into an execution sequence
 
 - packaged Python backend with `uv` dependency management
 - public SDK in `backend/src/sdk`
+- public API facade in `backend/src/simulation`
 - FastAPI transport in `backend/src/api`
 - Flask telemetry UI in `backend/src/ui`
 - SQLite persistence in `backend/src/api/run_store.py`
 - Anthropic + OpenAI adapters in `backend/src/llm`
-- 127 tests, 92.5% coverage
+- 144 tests, 89.5% coverage
 
 The intended GenAI integration assumption for this backlog is the **Anthropic Python library** as the LLM client/runtime boundary. The simulation engine remains the deterministic source of truth. Anthropic models are used only for:
 
@@ -46,6 +47,7 @@ All tasks complete. Architecture documented in CLAUDE.md. Clear module boundarie
 - `src/temporal` — simulator, state transitions, affective engine, memory
 - `src/self_model` — self-awareness, identity drift, self-related emotions
 - `src/sdk` — domain orchestration convenience layer
+- `src/simulation` — public API facade re-exporting from all domain modules
 - `src/api` — FastAPI external service boundary
 - `src/llm` — LLM integration boundary (adapters, runtime, schemas)
 - `src/ui` — Flask telemetry frontend
@@ -64,17 +66,18 @@ Replace stateless single-shot simulation endpoints with a real run lifecycle.
 All endpoints implemented in `src/api/run_router.py`:
 
 - `POST /runs` — creates persisted run with config
+- `GET /runs` — lists all persisted runs with summary
 - `GET /runs/{run_id}` — returns RunSummary with tick_count, latest_tick, phases, counts
 - `POST /runs/{run_id}/tick` — executes and persists one tick
 - `GET /runs/{run_id}/trajectory` — returns full trajectory with ticks, phases, invocations, interventions
 - `PATCH /runs/{run_id}/params` — patches mutable config (temperature)
 - `POST /runs/{run_id}/phases` — creates phase annotations
 
-Application service: `RunService` (275 LOC) coordinates persisted runs with simulator reconstruction. Supports both temporal and self-aware runs in one contract.
+Application service: `RunService` (240 LOC) coordinates persisted runs with simulator reconstruction. Supports both temporal and self-aware runs in one contract.
 
 Schemas: RunConfig, RunCreateRequest, RunTickRequest, RunPatchRequest, RunSummary, TrajectoryResponse, PhaseCreateRequest — all Pydantic.
 
-Tests: `test_api_runs.py`, `test_api_basic.py` cover lifecycle, stepping, trajectory retrieval.
+Tests: `test_api_runs.py`, `test_api_basic.py`, `test_api_list_runs.py` cover lifecycle, stepping, listing, trajectory retrieval.
 
 ## Phase 2: Persistent Storage — DONE
 
@@ -84,7 +87,7 @@ Persist run and tick state outside process memory.
 
 ### Status
 
-SQLite storage via `RunStore` (291 LOC) with 5 tables:
+SQLite storage via `RunStore` (289 LOC) with 5 tables:
 
 - `simulation_run` (run_id, mode, status, config_json, parent_run_id, parent_tick, created_at, updated_at)
 - `tick_event` (run_id, tick, scenario_json, requested_outcome, result_json, created_at)
@@ -204,32 +207,70 @@ Tests: `test_api_agents.py::test_intervention_endpoint_persists_and_applies_patc
 
 Support longer-running research campaigns rather than isolated runs.
 
-### Tasks
+### Plan
 
-- Add campaign model:
-  - campaign id
-  - goal set
-  - run set
-  - branch set
-- Support scheduled analysis checkpoints:
-  - every N ticks
-  - on threshold crossing
-  - on user pause
-- Add campaign-level summaries:
-  - identity drift progression
-  - emotion arc summaries
-  - branch comparisons
+#### 8.1 — Campaign Domain Model
+
+Add `CampaignRecord` dataclass and `campaign` SQLite table:
+
+- `campaign_id` (UUID), `name` (user-facing label), `status` (active/paused/complete)
+- `goals` (JSON list of strings), `config_template` (default RunConfig for child runs)
+- `created_at`, `updated_at`
+
+Add `campaign_run` join table linking campaign_id to run_id with role (primary, branch, replay).
+
+Extend `RunStore` with campaign CRUD: `create_campaign`, `get_campaign`, `list_campaigns`, `add_run_to_campaign`.
+
+#### 8.2 — Campaign Service
+
+New `CampaignService` in `src/api/campaign_service.py`:
+
+- `create_campaign(name, goals, config_template)` — creates campaign + first run
+- `add_branch(campaign_id, source_run_id, tick, patch)` — branches within campaign context
+- `get_campaign_summary(campaign_id)` — aggregates stats across all runs
+- `get_campaign_trajectory(campaign_id)` — cross-run trajectory for comparison
+
+#### 8.3 — Scheduled Analysis Checkpoints
+
+Add `checkpoint_rule` table: campaign_id, trigger_type (every_n_ticks | threshold | manual), trigger_config (JSON), last_fired_at.
+
+`CampaignService.check_triggers(campaign_id)` evaluates rules after each tick:
+
+- `every_n_ticks`: fires analyze_window every N steps
+- `threshold`: fires when a metric (mood, frustration, energy) crosses a boundary
+- `manual`: fires on explicit user request
+
+Each checkpoint produces an `AnalysisReport` persisted as an agent_invocation.
+
+#### 8.4 — Campaign API Routes
+
+New `campaign_router.py`:
+
+- `POST /campaigns` — create campaign
+- `GET /campaigns` — list campaigns
+- `GET /campaigns/{id}` — summary with run tree
+- `POST /campaigns/{id}/branch` — branch within campaign
+- `POST /campaigns/{id}/checkpoint` — trigger manual checkpoint
+- `GET /campaigns/{id}/analysis` — aggregated analysis across runs
+
+#### 8.5 — Campaign UI Panel
+
+Add campaign sidebar section to Flask UI: campaign list, create campaign form, campaign detail view showing run tree with branch lineage.
 
 ### Deliverables
 
-- campaign service
-- campaign persistence model
+- campaign domain model + SQLite tables
+- CampaignService with checkpoint evaluation
+- campaign API routes
+- campaign UI panel
 - cross-run analytics queries
 
 ### Acceptance Criteria
 
 - one campaign can coordinate multiple runs and branches
 - campaign-level analysis is reproducible from stored artifacts
+- checkpoint triggers fire automatically and persist results
+- UI shows campaign run tree with branch lineage
 
 ## Phase 9: Thin Telemetry Frontend — PARTIAL
 
@@ -239,29 +280,57 @@ Add a frontend only after the API and event model are stable.
 
 ### Status
 
-Flask UI implemented in `src/ui/` (app.py 186 LOC, api_client.py 70 LOC):
+Flask UI implemented in `src/ui/` (app.py 274 LOC, api_client.py 104 LOC):
 
-- Dark-themed dashboard with Inter + JetBrains Mono typography
-- Run creation with JSON config editor
+**Visual design:** Constructivist/Suprematist aesthetic with Archivo Black + Instrument Sans + DM Mono typography. Dark theme (#0a0a0a) with red (#c8210a) accent, subtle grid background, sharp 2px border-radius. Tilted red square brand mark.
+
+**Core features:**
+
+- Run creation with JSON config editor (client-side validation + sessionStorage draft preservation)
 - AI-assisted step with goal input and lookback window
-- Intervention request with auto-apply option
-- Manual tick with scenario JSON editor
-- Personality profile visualization (dimension bars with full names)
-- Internal state visualization (mood, arousal, energy, satisfaction, frustration as colored bars)
+- Intervention request with auto-apply confirmation dialog
+- Manual tick with scenario JSON editor (client-side validation)
+- Personality profile visualization (dimension bars with tooltip descriptions)
+- Internal state visualization (mood, arousal, energy, satisfaction, frustration)
 - Emotion tag display with intensity tooltips
-- Tabbed data panels: Steps (with outcome narrative), AI Calls, Interventions
-- API status indicator, run ID display, toast notifications
-- Plain-language explanations for every action
+- Trajectory sparkline chart (mood/energy/frustration) with hover tooltips per step
+- Tabbed data panels: Steps, AI Calls, Interventions (WAI-ARIA compliant with arrow-key navigation)
+- Run browser sidebar with recent runs list
+- Run actions toolbar: Replay, Branch (from step N with temperature), Export JSON
+- API status indicator, run ID display
 
-Tests: `test_ui.py` (2 tests) covers rendering and run view loading.
+**UX infrastructure:**
+
+- HTMX boost for smoother navigation (no full-page white flash)
+- Animated progress bar during requests (htmx-indicator)
+- Client-side JSON validation with inline error messages
+- sessionStorage: textarea drafts, collapsible state, active tab preserved across reloads
+- Human-readable error messages (maps JSONDecodeError, ConnectionError, TimeoutError)
+- `_flash_on_error` decorator for DRY route error handling
+- Toast notifications with manual dismiss button (6s auto-dismiss)
+- Confirmation dialog for destructive actions (auto-apply intervention)
+- Keyboard shortcuts: Ctrl+Enter submits focused form, Escape closes dialogs/collapses cards
+- Mobile responsive: main content first on small screens
+
+**Accessibility:**
+
+- Skip-to-content link
+- ARIA landmarks: banner, main, complementary
+- WAI-ARIA tabs with role="tab/tablist/tabpanel", aria-selected, arrow-key navigation
+- role="progressbar" on state bars with aria-valuenow/min/max
+- aria-current="page" on active run
+- focus-visible outlines on all interactive elements
+- WCAG AA contrast (--text-3 bumped to #8a8580 for 5.2:1 ratio)
+- SVG sparkline with `<title>` and role="img"
+
+Tests: `test_ui.py` (15 tests) covers rendering, run view, run browser, accessibility landmarks, ARIA tabs, JSON validation attributes, sparkline rendering, action toolbar, replay/branch/export routes, HTMX boost.
 
 ### Remaining
 
-- Trajectory charts (emotion arcs over time, state evolution graphs)
 - Phase timeline markers on trajectory view
 - Identity drift visualization for self-aware runs
-- Branch comparison view
-- Typed frontend client models (currently uses raw dicts)
+- Branch comparison view (side-by-side trajectories)
+- Typed frontend client models (currently raw `dict[str, Any]` in api_client.py)
 
 ## Phase 10: Full Orchestrator — NOT STARTED
 
@@ -269,31 +338,84 @@ Tests: `test_ui.py` (2 tests) covers rendering and run view loading.
 
 Only after the previous phases are stable, add a manager-style orchestrator.
 
-### Candidate Components
+### Plan
 
-- `MetaController`
-- `ScenarioAgent`
-- `ObserverAgent`
-- `AffectAnalystAgent`
-- `InterventionAgent`
+#### 10.1 — Orchestration Loop Design
 
-### Tasks
+Use an internal loop (not a graph framework) to keep dependencies minimal. The `MetaController` runs a decide-act-observe cycle:
 
-- Decide whether to use a graph orchestrator or a simpler internal loop first.
-- Add human checkpoint support.
-- Support pause/resume/continue/terminate decisions.
-- Persist all orchestrator decisions.
+1. **Decide**: examine latest tick + trajectory window + campaign goals → choose next action type
+2. **Act**: dispatch to the appropriate agent (ScenarioAgent, ObserverAgent, AffectAnalystAgent, InterventionAgent)
+3. **Observe**: read the result, update internal planner state, persist the decision
+4. **Checkpoint**: evaluate campaign triggers, run analysis if needed
+5. **Gate**: check termination conditions (max ticks, user pause, intervention-recommended terminate)
+
+All decisions persisted as `orchestrator_decision` records (new table).
+
+#### 10.2 — Agent Registry
+
+New `src/orchestrator/agents.py`:
+
+- `ScenarioAgent` — wraps `AgentRuntime.propose_scenario`, adds goal-directed scenario selection
+- `ObserverAgent` — wraps `AgentRuntime.summarize_window`, tracks narrative continuity
+- `AffectAnalystAgent` — wraps `AgentRuntime.analyze_window`, detects regime shifts
+- `InterventionAgent` — wraps `AgentRuntime.recommend_intervention`, enforces action constraints
+
+Each agent is a stateless callable: `(context: OrchestrationContext) -> AgentResult`. No agent holds state between invocations — all state flows through persistence.
+
+#### 10.3 — Human Checkpoint Support
+
+Orchestrator pauses at configurable points and waits for user input:
+
+- After N ticks (configurable)
+- When intervention recommends "pause"
+- When affect analysis detects anomaly
+- On explicit user request
+
+Paused state persisted in `simulation_run.status = 'paused'`. Resume via `POST /runs/{run_id}/resume` with optional goal update.
+
+#### 10.4 — Orchestration Persistence
+
+New `orchestrator_decision` table:
+
+- `decision_id`, `run_id`, `campaign_id` (nullable)
+- `cycle` (loop iteration), `action_type` (scenario/observe/analyze/intervene/pause/terminate)
+- `input_json`, `output_json`, `rationale`
+- `created_at`
+
+Every orchestrator decision is reconstructible from this table — no hidden state in prompt history.
+
+#### 10.5 — Orchestration API
+
+- `POST /runs/{run_id}/orchestrate` — run N orchestration cycles (default 1)
+- `POST /runs/{run_id}/orchestrate/auto` — run until termination condition
+- `GET /runs/{run_id}/orchestrator-log` — list all orchestrator decisions
+- `POST /runs/{run_id}/resume` — resume from paused state with optional new goals
+
+#### 10.6 — Orchestration UI
+
+Add orchestrator controls to Flask UI:
+
+- "Auto-run" button with cycle count input
+- Orchestrator decision log (new tab in data card)
+- Pause/resume controls
+- Visual indicator when orchestrator is running vs. paused
 
 ### Deliverables
 
-- orchestration runtime
-- campaign execution API
-- audit trail for all model-driven decisions
+- `src/orchestrator/` package: MetaController, agent registry, decision persistence
+- orchestrator_decision SQLite table
+- orchestration API routes
+- orchestrator UI controls
+- human checkpoint support with pause/resume
 
 ### Acceptance Criteria
 
 - all orchestration behavior is reconstructible from persistence
 - no hidden state lives only in prompt history
+- human can pause, inspect, and resume at any point
+- orchestrator respects campaign goals and intervention constraints
+- each cycle produces exactly one persisted decision record
 
 ## Cross-Cutting Work
 
@@ -303,9 +425,10 @@ Only after the previous phases are stable, add a manager-style orchestrator.
 - repository integration tests: test_api_runs.py, test_api_agents.py exercise persistence
 - deterministic replay tests: test_api_runs.py validates trajectory equivalence
 - mocked Anthropic adapter tests: test_llm.py with FakeAnthropicClient, FakeOpenAIClient
-- API contract tests: test_api_basic.py, test_api_runs.py, test_api_agents.py
+- API contract tests: test_api_basic.py, test_api_runs.py, test_api_list_runs.py, test_api_agents.py
+- UI integration tests: test_ui.py with FakeUiClient (rendering, routes, accessibility, HTMX)
 - e2e test with real Anthropic: test_e2e.py (requires credentials)
-- 127 tests total, 92.5% coverage
+- 144 tests total, 89.5% coverage
 
 ### Observability — DONE
 
@@ -321,6 +444,9 @@ Only after the previous phases are stable, add a manager-style orchestrator.
 - credentials loaded from environment only (never hardcoded)
 - LLM configuration failures return HTTP 503 with actionable messages
 - intervention permissions constrained to 7 explicit actions
+- client-side input validation (JSON syntax check before submit)
+- confirmation dialogs for destructive actions (auto-apply intervention)
+- human-readable error messages (no raw exceptions shown to users)
 
 ### Configuration — DONE
 
@@ -350,8 +476,8 @@ Only after the previous phases are stable, add a manager-style orchestrator.
 
 ## Recommended Next Priorities
 
-1. **Phase 9 completion**: Add trajectory charts (emotion arcs, state evolution), phase timeline markers, and identity drift visualization to the Flask UI.
-2. **Phase 8**: Introduce campaign model and cross-run analytics — the infrastructure (runs, branches, persistence) is ready to support it.
+1. **Phase 9 completion**: Add phase timeline markers, identity drift visualization, and branch comparison view. Replace raw dict client models with typed Pydantic/TypedDict.
+2. **Phase 8**: Introduce campaign model and cross-run analytics — the infrastructure (runs, branches, persistence, UI replay/branch controls) is ready.
 3. **Phase 10**: Full orchestrator with MetaController and human checkpoints — deferred until campaign model exists.
 
 ## Explicit Non-Goals For Now

@@ -6,8 +6,10 @@
 set -euo pipefail
 
 cd backend
+rm -rf .mypy_cache
+export MYPY_CACHE_DIR=/tmp/red-iron-square-mypy-cache
 set +e
-.venv/bin/python -m mypy --no-incremental src/
+.venv/bin/python -m mypy --cache-dir="$MYPY_CACHE_DIR" --no-incremental src/
 status=$?
 set -e
 
@@ -19,5 +21,7 @@ cache_dir = Path(".mypy_cache")
 if cache_dir.exists():
     shutil.rmtree(cache_dir)
 PY
+
+rm -rf "$MYPY_CACHE_DIR"
 
 exit "$status"
