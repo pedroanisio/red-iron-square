@@ -93,3 +93,18 @@ class EmotionConstructor(BaseModel):
     valence_sign: Literal["positive", "negative", "neutral"]
     arousal_level: Literal["high", "low"]
     confidence: float = Field(ge=0.0, le=1.0)
+
+
+class ActionEncoding(BaseModel):
+    """LLM-estimated personality-dimension modifiers for an open-ended action."""
+
+    modifiers: dict[str, float]
+    confidence: float = Field(ge=0.0, le=1.0)
+    rationale: str = ""
+
+
+class ActionSetProposal(BaseModel):
+    """LLM-proposed set of candidate actions given context."""
+
+    actions: list[dict[str, object]]
+    rationale: str = ""

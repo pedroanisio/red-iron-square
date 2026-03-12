@@ -75,3 +75,18 @@ class System2RuntimeProtocol(Protocol):
     ) -> tuple[Any, Any]:
         """Propose A/B matrices for narrative generative model."""
         ...
+
+
+class ActionEncoderProtocol(Protocol):
+    """Structural interface for action-to-modifier encoding."""
+
+    def encode_modifiers(
+        self,
+        *,
+        name: str,
+        description: str,
+        kind: str,
+        context: dict[str, Any],
+    ) -> dict[str, float]:
+        """Return estimated personality-dimension modifiers in [-1, 1]."""
+        ...

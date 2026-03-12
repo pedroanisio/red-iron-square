@@ -75,7 +75,8 @@ class TemporalSimulator:
         self._precision_engine = precision_engine
         self._constructed_affect = constructed_affect
         self._use_precision_state = (
-            use_precision_state if use_precision_state is not None
+            use_precision_state
+            if use_precision_state is not None
             else (precision_engine is not None)
         )
         self._precision_state_params = precision_state_params or PrecisionStateParams()
@@ -87,7 +88,29 @@ class TemporalSimulator:
             agent_runtime,
             personality,
         )
+        self._action_pipeline: object | None = None
         self._bind_engine_memory()
+
+    def set_action_pipeline(self, pipeline: object) -> None:
+        """Register a dynamic action pipeline for per-tick proposal."""
+        self._action_pipeline = pipeline
+
+    def _resolve_tick_actions(self) -> list[Action]:
+        """Return static actions or dynamically proposed actions."""
+        if self.actions:
+            return self.actions
+        if self._action_pipeline is not None:
+            from src.action_space.pipeline import ActionPipeline
+
+            if isinstance(self._action_pipeline, ActionPipeline):
+                actions, _ = self._action_pipeline.propose_and_encode(
+                    state=self.state.snapshot().model_dump(),
+                    trajectory=[],
+                    goals=[],
+                )
+                if actions:
+                    return actions
+        return self.actions
 
     def _bind_engine_memory(self) -> None:
         """Bind memory bank to engine if it supports it (e.g. EFEEngine)."""
@@ -202,13 +225,16 @@ class TemporalSimulator:
         self,
         scenario: Scenario,
         activations: np.ndarray,
+        actions: Sequence[Action] | None = None,
     ) -> dict[str, dict[str, float]] | None:
         """Compute per-action EFE decomposition when EFE engine is active."""
         if not hasattr(self.engine, "compute_efe_breakdown"):
             return None
         fn = getattr(self.engine, "compute_efe_breakdown")
         result: dict[str, dict[str, float]] = fn(
-            self.personality, scenario, self.actions,
+            self.personality,
+            scenario,
+            actions or self.actions,
             activations_override=activations,
         )
         return result
@@ -216,6 +242,7 @@ class TemporalSimulator:
     def tick(self, scenario: Scenario, outcome: float | None = None) -> TickResult:
         """Execute one simulation tick."""
         state_before = self.state.snapshot()
+        tick_actions = self._resolve_tick_actions()
         activations = self._compute_modulated_activations(scenario)
 
         pre_precision: PrecisionState | None = None
@@ -227,14 +254,14 @@ class TemporalSimulator:
         _, base_probs = self.engine.decide(
             self.personality,
             scenario,
-            self.actions,
+            tick_actions,
             temperature=temperature,
             rng=self.rng,
             activations_override=activations,
         )
         probs = self._modulate_probs(base_probs)
-        chosen_idx = self.rng.choice(len(self.actions), p=probs)
-        chosen_action = self.actions[chosen_idx]
+        chosen_idx = self.rng.choice(len(tick_actions), p=probs)
+        chosen_action = tick_actions[chosen_idx]
 
         resolved_outcome = resolve_outcome(
             self.engine,
@@ -249,7 +276,7 @@ class TemporalSimulator:
             self.engine,
             self.personality,
             scenario,
-            self.actions,
+            tick_actions,
             chosen_action,
             activations,
         )
@@ -284,7 +311,7 @@ class TemporalSimulator:
             is_still_acting=is_acting,
         )
 
-        efe_breakdown = self._compute_efe_breakdown(scenario, activations)
+        efe_breakdown = self._compute_efe_breakdown(scenario, activations, tick_actions)
 
         precision, pred_errors = self._compute_precision(new_state, scenario)
         affect_sig = run_constructed_affect(

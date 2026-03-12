@@ -228,7 +228,10 @@ class EFEEngine:
         breakdown: dict[str, dict[str, float]] = {}
         for action in actions:
             pragmatic = self._pragmatic_value(
-                personality, scenario, action, activations_override,
+                personality,
+                scenario,
+                action,
+                activations_override,
             )
             epistemic = self._epistemic_value(action)
             w_O = self._O * self._params.w_base

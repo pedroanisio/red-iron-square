@@ -29,6 +29,7 @@ from src.sdk.self_model_client import SelfModelSimulationClient
 from src.sdk.simulation_client import TemporalSimulationClient
 from src.sdk.types import (
     DecisionResult,
+    OpenEndedDecisionResult,
     SelfAwareSimulationTrace,
     SelfAwareTickRecord,
     SimulationTrace,
@@ -65,6 +66,8 @@ class AgentSDK:
         self._self_evidencing_params = self_evidencing_params
         self._emotion_callback: EmotionCallback | None = None
         self._agent_runtime: System2RuntimeProtocol | None = None
+        self._action_proposer: object | None = None
+        self._action_encoder: object | None = None
 
     @classmethod
     def default(cls) -> AgentSDK:
@@ -117,6 +120,33 @@ class AgentSDK:
             emotion_params=emotion_params or ConstructedEmotionParams(),
             self_evidencing_params=self_evidencing_params or SelfEvidencingParams(),
         )
+
+    @classmethod
+    def with_open_actions(
+        cls,
+        proposer_backend: object | None = None,
+        tool_registry: object | None = None,
+        include_withdraw: bool = False,
+        **kwargs: object,
+    ) -> AgentSDK:
+        """Create SDK with open-ended action space support."""
+        from src.action_space.encoder import ActionEncoder, HeuristicEncoderBackend
+        from src.action_space.proposer import ActionProposer, StaticProposerBackend
+        from src.action_space.registry import ToolRegistry
+
+        sdk = cls(**kwargs)  # type: ignore[arg-type]
+        t_reg = tool_registry if isinstance(tool_registry, ToolRegistry) else None
+        backend = proposer_backend or StaticProposerBackend()
+        sdk._action_proposer = ActionProposer(
+            backend=backend,  # type: ignore[arg-type]
+            tool_registry=t_reg,
+            include_withdraw=include_withdraw,
+        )
+        sdk._action_encoder = ActionEncoder(
+            dimension_registry=sdk.registry,
+            backend=HeuristicEncoderBackend(tool_registry=t_reg),
+        )
+        return sdk
 
     def set_emotion_callback(self, callback: EmotionCallback) -> None:
         """Register an LLM emotion callback for System 2 surprise spikes."""
@@ -190,6 +220,48 @@ class AgentSDK:
             rng=rng,
         )
 
+    def propose_and_decide(
+        self,
+        personality: PersonalityVector,
+        scenario: Scenario,
+        *,
+        state: dict[str, object] | None = None,
+        trajectory: list[dict[str, object]] | None = None,
+        goals: list[str] | None = None,
+        temperature: float = 1.0,
+    ) -> OpenEndedDecisionResult:
+        """Propose actions from context, encode to modifiers, decide via Boltzmann."""
+        from src.action_space.encoder import ActionEncoder
+        from src.action_space.proposer import ActionProposer
+
+        if not isinstance(self._action_proposer, ActionProposer):
+            msg = "Call AgentSDK.with_open_actions() to enable open-ended decisions"
+            raise RuntimeError(msg)
+        proposer: ActionProposer = self._action_proposer
+        encoder: ActionEncoder = self._action_encoder  # type: ignore[assignment]
+
+        proposals = proposer.propose(
+            state=dict(state) if state else {},
+            trajectory=list(trajectory) if trajectory else [],
+            goals=goals or [],
+        )
+        actions = encoder.encode_batch(proposals)
+        engine = self._resolve_engine(personality)
+        result = DecisionClient(engine, self.registry).decide(
+            personality,
+            scenario,
+            actions,
+            temperature=temperature,
+        )
+        return OpenEndedDecisionResult(
+            chosen_action=result.chosen_action,
+            probabilities=result.probabilities,
+            utilities=result.utilities,
+            activations=result.activations,
+            action_order=result.action_order,
+            proposals=[p.model_dump() for p in proposals],
+        )
+
     def _resolve_engine(
         self,
         personality: PersonalityVector,
@@ -219,13 +291,24 @@ class AgentSDK:
         if self._agent_runtime and "agent_runtime" not in simulator_kwargs:
             simulator_kwargs["agent_runtime"] = self._agent_runtime
         engine = self._resolve_engine(personality)
-        return TemporalSimulationClient(
+        client = TemporalSimulationClient(
             personality,
             actions,
             engine,
             self.registry,
             **simulator_kwargs,
         )
+        if self._action_proposer is not None and self._action_encoder is not None:
+            from src.action_space.encoder import ActionEncoder
+            from src.action_space.pipeline import ActionPipeline
+            from src.action_space.proposer import ActionProposer
+
+            if isinstance(self._action_proposer, ActionProposer) and isinstance(
+                self._action_encoder, ActionEncoder
+            ):
+                pipeline = ActionPipeline(self._action_proposer, self._action_encoder)
+                client.simulator.set_action_pipeline(pipeline)
+        return client
 
     def self_aware_simulator(
         self,
@@ -268,6 +351,7 @@ __all__ = [
     "ConstructedEmotionParams",
     "DEFAULT_DIMENSIONS",
     "DecisionResult",
+    "OpenEndedDecisionResult",
     "EFEEngine",
     "EFEParams",
     "EmotionCallback",

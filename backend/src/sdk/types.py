@@ -59,3 +59,14 @@ class SelfAwareSimulationTrace(BaseModel):
     """JSON-safe sequence of self-aware simulation ticks."""
 
     ticks: list[SelfAwareTickRecord]
+
+
+class OpenEndedDecisionResult(BaseModel):
+    """Decision result with action proposal metadata."""
+
+    chosen_action: str
+    probabilities: dict[str, float]
+    utilities: dict[str, float]
+    activations: dict[str, float]
+    action_order: list[str]
+    proposals: list[dict[str, Any]] | None = None

@@ -189,10 +189,13 @@ class SelfAwareSimulator(TemporalSimulator):
         if self._self_evidencing is None or self._precision_engine is None:
             return
         precision = self._precision_engine.compute(
-            self.personality, self.state, scenario,
+            self.personality,
+            self.state,
+            scenario,
         )
         self._se_weights = self._self_evidencing.compute_precision_weights(
-            predicted_probs, precision.level_1,
+            predicted_probs,
+            precision.level_1,
         )
 
     def _compute_self_evidencing(
