@@ -36,7 +36,7 @@ from src.sdk.types import (
 )
 from src.self_evidencing.modulator import SelfEvidencingModulator
 from src.self_evidencing.params import SelfEvidencingParams
-from src.shared.protocols import DecisionEngineProtocol
+from src.shared.protocols import DecisionEngineProtocol, System2RuntimeProtocol
 
 
 class AgentSDK:
@@ -64,6 +64,7 @@ class AgentSDK:
         self._emotion_params = emotion_params
         self._self_evidencing_params = self_evidencing_params
         self._emotion_callback: EmotionCallback | None = None
+        self._agent_runtime: System2RuntimeProtocol | None = None
 
     @classmethod
     def default(cls) -> AgentSDK:
@@ -120,6 +121,10 @@ class AgentSDK:
     def set_emotion_callback(self, callback: EmotionCallback) -> None:
         """Register an LLM emotion callback for System 2 surprise spikes."""
         self._emotion_callback = callback
+
+    def set_agent_runtime(self, runtime: System2RuntimeProtocol) -> None:
+        """Register an LLM runtime for System 2 narrative refresh."""
+        self._agent_runtime = runtime
 
     @classmethod
     def from_dimensions(cls, dimensions: Sequence[Dimension]) -> AgentSDK:
@@ -211,6 +216,8 @@ class AgentSDK:
         if self._emotion_params and "narrative_model" not in simulator_kwargs:
             pvals = dict(zip(personality.registry.keys, personality.to_array()))
             simulator_kwargs["narrative_model"] = NarrativeGenerativeModel(pvals)
+        if self._agent_runtime and "agent_runtime" not in simulator_kwargs:
+            simulator_kwargs["agent_runtime"] = self._agent_runtime
         engine = self._resolve_engine(personality)
         return TemporalSimulationClient(
             personality,
@@ -242,6 +249,8 @@ class AgentSDK:
             simulator_kwargs["self_evidencing"] = SelfEvidencingModulator(
                 self._self_evidencing_params,
             )
+        if self._agent_runtime and "agent_runtime" not in simulator_kwargs:
+            simulator_kwargs["agent_runtime"] = self._agent_runtime
         engine = self._resolve_engine(personality)
         return SelfModelSimulationClient(
             personality,

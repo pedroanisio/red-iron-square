@@ -15,32 +15,29 @@ from src.temporal.affective_engine import AffectiveEngine
 from src.temporal.emotions import EmotionThresholds
 from src.temporal.memory import MemoryBank, MemoryEntry
 from src.temporal.precision_state import PrecisionStateParams, update_state_precision
+from src.temporal.simulator_support import (
+    build_system2,
+    compute_action_effort,
+    compute_counterfactual,
+    determine_is_still_acting,
+    resolve_outcome,
+    run_constructed_affect,
+)
 from src.temporal.state import AgentState, StateTransitionParams, update_state
 from src.temporal.tick_result import TickResult
 
 if TYPE_CHECKING:
-    from src.constructed_emotion.affect import AffectSignal, ConstructedAffectiveEngine
+    from src.constructed_emotion.affect import ConstructedAffectiveEngine
     from src.narrative.model import NarrativeGenerativeModel
     from src.precision.engine import PrecisionEngine
+    from src.self_evidencing.modulator import SelfEvidencingModulator
+    from src.shared.protocols import System2RuntimeProtocol
 
 _log = get_logger(module="temporal.simulator")
 
 
 class TemporalSimulator:
-    """The main simulation loop: personality x scenarios x time -> emotion traces.
-
-    Pipeline per tick:
-        1. Compute state-modulated activations
-        2. Compute effective temperature (mood-modulated)
-        3. Select action via Boltzmann
-        4. Resolve outcome
-        5. Compute counterfactual
-        6. Determine withdrawal
-        7. Compute action effort and update state
-        8. Store memory
-        9. Detect emotions
-        10. (Optional) Compute shadow precision and prediction errors
-    """
+    """Main simulation loop for temporal agent dynamics."""
 
     WITHDRAW_ACTION_NAME = "Withdraw"
 
@@ -61,6 +58,8 @@ class TemporalSimulator:
         use_precision_state: bool = False,
         precision_state_params: PrecisionStateParams | None = None,
         narrative_model: NarrativeGenerativeModel | None = None,
+        agent_runtime: System2RuntimeProtocol | None = None,
+        self_evidencing: SelfEvidencingModulator | None = None,
     ) -> None:
         self.personality = personality
         self.actions = list(actions)
@@ -78,6 +77,13 @@ class TemporalSimulator:
         self._use_precision_state = use_precision_state
         self._precision_state_params = precision_state_params or PrecisionStateParams()
         self._narrative_model = narrative_model
+        self._self_evidencing = self_evidencing
+        self._system2 = build_system2(
+            self._narrative_model,
+            self._self_evidencing,
+            agent_runtime,
+            personality,
+        )
         self._bind_engine_memory()
 
     def _bind_engine_memory(self) -> None:
@@ -105,62 +111,6 @@ class TemporalSimulator:
             gamma = precision.level_1
             return 1.0 / gamma
         return self.temperature * (1.0 + 0.3 * max(0, -self.state.mood))
-
-    def _resolve_outcome(
-        self,
-        outcome: float | None,
-        activations: np.ndarray,
-        chosen_action: Action,
-        scenario: Scenario,
-    ) -> float:
-        """Use provided outcome or stochastic model."""
-        if outcome is not None:
-            return outcome
-        u = self.engine.utility(
-            self.personality,
-            scenario,
-            chosen_action,
-            activations_override=activations,
-        )
-        return float(np.clip(self.rng.normal(0.2 * u, 0.3), -1.0, 1.0))
-
-    def _compute_counterfactual(
-        self,
-        activations: np.ndarray,
-        chosen_action: Action,
-        scenario: Scenario,
-    ) -> float:
-        """Best unchosen utility minus chosen utility."""
-        utilities = np.array(
-            [
-                self.engine.utility(
-                    self.personality, scenario, a, activations_override=activations
-                )
-                for a in self.actions
-            ]
-        )
-        chosen_idx = next(
-            i for i, a in enumerate(self.actions) if a.name == chosen_action.name
-        )
-        unchosen = np.delete(utilities, chosen_idx)
-        if len(unchosen) == 0:
-            return 0.0
-        return float(max(unchosen) - utilities[chosen_idx])
-
-    def _determine_is_still_acting(
-        self,
-        chosen_action: Action,
-        new_state: AgentState,
-    ) -> bool:
-        """Return False if agent withdrew, energy depleted, or frustration maxed."""
-        if chosen_action.name == self.WITHDRAW_ACTION_NAME:
-            return False
-        return new_state.energy > 1e-9 and new_state.frustration < 1.0 - 1e-9
-
-    @staticmethod
-    def _compute_action_effort(action: Action) -> float:
-        """Compute action effort as L2 norm of the modifier vector."""
-        return float(np.linalg.norm(action.modifiers))
 
     def _transition_state(
         self,
@@ -232,20 +182,6 @@ class TemporalSimulator:
         errors = self._precision_engine.compute_errors(state, self.personality)
         return precision, errors
 
-    def _run_constructed_affect(
-        self,
-        precision: PrecisionState | None,
-        errors: PredictionErrors | None,
-    ) -> AffectSignal | None:
-        """Run constructed affective engine if available and precision exists."""
-        if self._constructed_affect is None or precision is None or errors is None:
-            return None
-        return self._constructed_affect.process_tick(
-            precision,
-            errors,
-            self.personality,
-        )
-
     @property
     def _uses_efe(self) -> bool:
         """Check if the engine supports EFE-based decisions."""
@@ -271,25 +207,35 @@ class TemporalSimulator:
             activations_override=activations,
         )
 
-        resolved_outcome = self._resolve_outcome(
+        resolved_outcome = resolve_outcome(
+            self.engine,
+            self.personality,
+            scenario,
+            chosen_action,
+            activations,
+            self.rng,
             outcome,
-            activations,
-            chosen_action,
-            scenario,
         )
-        counterfactual = self._compute_counterfactual(
-            activations,
-            chosen_action,
+        counterfactual = compute_counterfactual(
+            self.engine,
+            self.personality,
             scenario,
+            self.actions,
+            chosen_action,
+            activations,
         )
 
-        action_effort = self._compute_action_effort(chosen_action)
+        action_effort = compute_action_effort(chosen_action)
         new_state = self._transition_state(
             resolved_outcome,
             scenario,
             action_effort,
         )
-        is_acting = self._determine_is_still_acting(chosen_action, new_state)
+        is_acting = determine_is_still_acting(
+            self.WITHDRAW_ACTION_NAME,
+            chosen_action,
+            new_state,
+        )
 
         self._store_memory(
             self._tick_counter,
@@ -310,20 +256,20 @@ class TemporalSimulator:
         )
 
         precision, pred_errors = self._compute_precision(new_state, scenario)
-        affect_sig = self._run_constructed_affect(precision, pred_errors)
-        if self._narrative_model and affect_sig:
-            window = [
-                {
-                    "state": list(self.state.to_array()),
-                    "outcome": e.outcome,
-                    "action": e.action_name,
-                }
-                for e in self.memory.recent(50)
-            ]
-            self._narrative_model.refresh_on_spike(
-                affect_sig.is_surprise_spike,
-                window,
+        affect_sig = run_constructed_affect(
+            self._constructed_affect,
+            precision,
+            pred_errors,
+            self.personality,
+        )
+        if self._system2 and affect_sig:
+            from src.temporal.system2 import System2Orchestrator
+
+            window = System2Orchestrator.build_trajectory_window(
+                self.memory.recent(50),
+                self.state,
             )
+            self._system2.on_tick(affect_sig, window)
 
         self.state = new_state
         self._tick_counter += 1

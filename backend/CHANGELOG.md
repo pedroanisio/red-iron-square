@@ -27,10 +27,20 @@ disclaimer: "No information in this document should be taken for granted. Any st
   and
   [backend/tests/test_campaign_store.py](/home/admin/spikes/red-iron-square/backend/tests/test_campaign_store.py).
 
+- System 2 LLM integration pipeline (`src.temporal.system2.System2Orchestrator`)
+  coordinating surprise-spike-triggered `propose_matrices` → narrative model
+  update → self-evidencing beta reset, with graceful heuristic fallback.
+- `NarrativeGenerativeModel.update_from_proposal()` for LLM-driven A/B matrix
+  replacement with dimension validation and row normalization.
+- `System2RuntimeProtocol` in `src.shared.protocols` for decoupled runtime typing.
+- `AgentSDK.set_agent_runtime()` to thread LLM runtime into simulation factories.
+
 ### Changed
 
-- The FastAPI app factory now wires both run and campaign routers.
-- Backend verification baseline is now `457 passed` under `uv run pytest -q`.
+- Phase C status upgraded from PARTIALLY IMPLEMENTED to COMPLETE.
+- `TemporalSimulator` now accepts optional `agent_runtime` and `self_evidencing`
+  parameters, delegating System 2 logic to `System2Orchestrator`.
+- Backend verification baseline is now `524 passed` under `uv run pytest -q`.
 
 ## 0.1.0
 

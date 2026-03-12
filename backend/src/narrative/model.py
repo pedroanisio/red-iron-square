@@ -6,11 +6,14 @@ that are refreshed at surprise spikes and phase boundaries.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from src.shared.logging import get_logger
+
+if TYPE_CHECKING:
+    from src.llm.schemas import MatrixProposal
 
 _log = get_logger(module="narrative.model")
 
@@ -60,6 +63,40 @@ class NarrativeGenerativeModel:
     def cached_C(self) -> np.ndarray:
         """Prior preference vector — shape (n_obs,)."""
         return self._C.copy()
+
+    def update_from_proposal(self, proposal: MatrixProposal) -> bool:
+        """Apply LLM-proposed A/B matrices to the generative model.
+
+        Validates dimensions, normalizes rows, and replaces internal matrices.
+        Returns True on success, False on validation failure (graceful no-op).
+        """
+        if proposal.n_states != self._n_states or proposal.n_actions != self._n_actions:
+            _log.warning(
+                "proposal_dimension_mismatch",
+                expected_states=self._n_states,
+                expected_actions=self._n_actions,
+                got_states=proposal.n_states,
+                got_actions=proposal.n_actions,
+            )
+            return False
+        try:
+            new_a = np.array(proposal.a_matrix, dtype=float)
+            new_b = np.array(proposal.b_matrix, dtype=float)
+        except (ValueError, TypeError):
+            _log.warning("proposal_invalid_array_format")
+            return False
+        if new_a.shape != self._A.shape or new_b.shape != self._B.shape:
+            _log.warning("proposal_shape_mismatch")
+            return False
+        new_a = np.maximum(new_a, 1e-6)
+        new_b = np.maximum(new_b, 1e-6)
+        for a in range(self._n_actions):
+            new_a[:, :, a] /= new_a[:, :, a].sum(axis=0, keepdims=True)
+            new_b[:, :, a] /= new_b[:, :, a].sum(axis=1, keepdims=True)
+        self._A = new_a
+        self._B = new_b
+        _log.info("narrative_model_updated_from_proposal", rationale=proposal.rationale)
+        return True
 
     def refresh_on_spike(
         self,

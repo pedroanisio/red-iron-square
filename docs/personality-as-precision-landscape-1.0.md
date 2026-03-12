@@ -23,16 +23,16 @@ This is a research architecture proposal, not a sprint-ready implementation spec
 
 ### 0.1 Implementation status against the current codebase
 
-Updated 2026-03-11.
+Updated 2026-03-12.
 
 - **Phase A status:** COMPLETE. `PrecisionState`, Level-0 allostatic prediction errors, personality-derived set-points, precision snapshots in tick payloads, SDK wiring, persisted run/API coverage, profile-based exit-criterion tests. Precision-weighted state transitions (`update_state_precision`) available as an optional flag on `TemporalSimulator`.
 - **Phase B status:** IMPLEMENTED (opt-in). `EFEEngine` with pragmatic/epistemic decomposition, `CVector` personality-to-preference mapping, memory-based epistemic value, `AgentSDK.decide()` honors EFE mode, `RunClientBuilder` resolves SDK mode from run config. Information-gain epistemic value (`src/efe/info_gain.py`) provides a proper Bayesian alternative to the memory-variance approximation. EFE is available via `AgentSDK.with_efe()` but remains opt-in rather than the canonical default decision path.
-- **Phase C status:** PARTIALLY IMPLEMENTED. `ConstructedAffectiveEngine` with System 1 (valence from delta-F, arousal from precision-weighted errors) and System 2 (LLM emotion construction via `EmotionCallback`). `SelfEvidencingModulator` with L2→L1 feedback. `NarrativeGenerativeModel` with cached A/B/C matrices. `AgentRuntime.construct_emotion()` and `propose_matrices()` for LLM integration. Self-evidencing weights modulate Boltzmann logits via temperature scaling. LLM emotion construction triggers on surprise spikes; narrative model refresh is wired to surprise spike events. The runtime defaults to heuristic emotion detection; LLM-constructed emotions are activated via `EmotionCallback`.
+- **Phase C status:** COMPLETE. `ConstructedAffectiveEngine` with System 1 (valence from delta-F, arousal from precision-weighted errors) and System 2 (LLM emotion construction via `EmotionCallback`). `SelfEvidencingModulator` with L2→L1 feedback. `NarrativeGenerativeModel` with cached A/B/C matrices and `update_from_proposal()` for LLM-driven matrix replacement. `System2Orchestrator` (`src/temporal/system2.py`) coordinates surprise-spike-triggered LLM calls: `AgentRuntime.propose_matrices()` → `NarrativeGenerativeModel.update_from_proposal()` → `SelfEvidencingModulator.reset_beta()`. Self-evidencing weights modulate Boltzmann logits via temperature scaling. LLM emotion construction triggers on surprise spikes via `EmotionCallback`. All LLM calls degrade gracefully to heuristic fallbacks. The runtime is threaded through `AgentSDK.set_agent_runtime()` → `TemporalSimulator` → `System2Orchestrator`.
 - **§6.3 Stability sweep:** 256-corner configuration test (`test_stability_sweep.py`) gates integration.
 - **§8 Ablation protocol:** `src/ablation/` with 10 ablation configurations and `AblationRunner`, covering all seven conditions from section 8.
 - **§2.4 Meta-learning:** `src/meta/` with `MetaObjective` (behavioral divergence + collapse penalty) and `CMAESOptimizer` for precision parameter tuning.
 - **Predictions 2 and 5:** O/C entropy tradeoff and narrative coherence recovery tests implemented.
-- **§10 pymdp bridge:** `MatrixProposal` schema and `AgentRuntime.propose_matrices()` for LLM-generated A/B matrices. Full information-gain epistemic value in `src/efe/info_gain.py`.
+- **§10 pymdp bridge:** `MatrixProposal` schema and `AgentRuntime.propose_matrices()` for LLM-generated A/B matrices, wired into `System2Orchestrator` for live narrative model updates. Full information-gain epistemic value in `src/efe/info_gain.py`.
 
 The codebase supports **precision as the causal organizing principle of action, emotion construction, and narrative identity**, with all three hierarchy levels operational, dual-regime System 1/System 2 architecture, and gradient-free meta-learning for parameter optimization.
 
@@ -520,7 +520,7 @@ Each phase is independently valuable and reversible.
 
 ### 7.3 Phase C — Emotion construction and narrative generative model
 
-**Implementation status:** PARTIALLY IMPLEMENTED
+**Implementation status:** COMPLETE
 
 Phase C combines three novel subsystems. To manage integration risk, it is split into two sub-phases:
 
@@ -544,7 +544,7 @@ Phase C combines three novel subsystems. To manage integration risk, it is split
 
 **What does not change:** `StructuredLLMAdapter` protocol, `AgentRuntime` interface, the principle that LLM outputs are typed, validated, and never mutate state directly.
 
-**Current implementation state:** `ConstructedAffectiveEngine` (System 1 + System 2), `SelfEvidencingModulator`, and `NarrativeGenerativeModel` are fully coded and wired via SDK factory methods (`with_constructed_emotion`, `with_self_evidencing`). The `NarrativeGenerativeModel` accepts personality-based initialization (not `StructuredLLMAdapter` as originally proposed) and refreshes via `refresh_from_trajectory()` triggered on surprise spikes. `EmotionCallback` provides the LLM integration point for System 2 emotion construction. The runtime defaults to heuristic emotion detection; LLM-constructed emotions are activated when an `EmotionCallback` is provided.
+**Current implementation state:** `ConstructedAffectiveEngine` (System 1 + System 2), `SelfEvidencingModulator`, and `NarrativeGenerativeModel` are fully coded and wired via SDK factory methods (`with_constructed_emotion`, `with_self_evidencing`). LLM integration is wired end-to-end via `System2Orchestrator`: on surprise spikes, `AgentRuntime.propose_matrices()` proposes new A/B matrices, `NarrativeGenerativeModel.update_from_proposal()` validates and applies them, and `SelfEvidencingModulator.reset_beta()` recalibrates precision. Heuristic fallback (`refresh_from_trajectory()`) is preserved for when no LLM runtime is available or when LLM calls fail. `EmotionCallback` provides the LLM integration point for System 2 emotion construction.
 
 ### 7.4 Phase C integration risks
 

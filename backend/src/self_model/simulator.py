@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from src.narrative.model import NarrativeGenerativeModel
     from src.precision.engine import PrecisionEngine
     from src.self_evidencing.modulator import SelfEvidencingModulator
+    from src.shared.protocols import System2RuntimeProtocol
 
 _log = get_logger(module="self_model.simulator")
 
@@ -65,6 +66,7 @@ class SelfAwareSimulator(TemporalSimulator):
         constructed_affect: ConstructedAffectiveEngine | None = None,
         self_evidencing: SelfEvidencingModulator | None = None,
         narrative_model: NarrativeGenerativeModel | None = None,
+        agent_runtime: System2RuntimeProtocol | None = None,
     ) -> None:
         super().__init__(
             personality,
@@ -77,6 +79,8 @@ class SelfAwareSimulator(TemporalSimulator):
             precision_engine=precision_engine,
             constructed_affect=constructed_affect,
             narrative_model=narrative_model,
+            agent_runtime=agent_runtime,
+            self_evidencing=self_evidencing,
         )
         self.self_model = SelfModel(
             initial_self_model,

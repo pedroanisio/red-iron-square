@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Protocol
+from typing import Any, Protocol
 
 import numpy as np
 
@@ -55,4 +55,23 @@ class DecisionEngineProtocol(Protocol):
         activations_override: np.ndarray | None = None,
     ) -> tuple[Action, np.ndarray]:
         """Select an action and return probabilities."""
+        ...
+
+
+class System2RuntimeProtocol(Protocol):
+    """Structural interface for System 2 LLM integration.
+
+    Satisfied by ``AgentRuntime`` without coupling the simulation
+    layer to the full LLM adapter surface.
+    """
+
+    def propose_matrices(
+        self,
+        *,
+        personality: dict[str, float],
+        trajectory_window: list[dict[str, Any]],
+        n_states: int,
+        n_actions: int,
+    ) -> tuple[Any, Any]:
+        """Propose A/B matrices for narrative generative model."""
         ...
