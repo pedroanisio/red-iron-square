@@ -18,9 +18,11 @@ from src.api.run_models import (
 )
 from src.api.run_store import RunStore
 from src.llm.schemas import LLMInvocationResult
-from src.sdk import AgentSDK
+from src.sdk.builders import build_registry, build_scenario
 
 SimClient = Any  # TemporalSimulationClient | SelfModelSimulationClient
+
+_REGISTRY = build_registry()
 
 
 class RunService:
@@ -81,9 +83,9 @@ class RunService:
     ) -> dict[str, Any]:
         """Execute and persist one tick."""
         client = self._get_or_build_client(run_id)
-        sdk = AgentSDK.default()
-        scenario = sdk.scenario(
+        scenario = build_scenario(
             scenario_payload["values"],
+            _REGISTRY,
             name=scenario_payload.get("name", ""),
             description=scenario_payload.get("description", ""),
         )

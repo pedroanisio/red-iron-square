@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -12,12 +12,28 @@ from pydantic import BaseModel
 
 from src.sdk import AgentSDK
 
+_SDK_MODES = ("default", "precision", "efe", "constructed_emotion", "self_evidencing")
+
+_SDK_FACTORIES: dict[str, Callable[[], AgentSDK]] = {
+    "default": AgentSDK.default,
+    "precision": AgentSDK.with_precision,
+    "efe": AgentSDK.with_efe,
+    "constructed_emotion": AgentSDK.with_constructed_emotion,
+    "self_evidencing": AgentSDK.with_self_evidencing,
+}
+
 
 def _load_json_argument(raw: str) -> Any:
     """Load JSON either inline or from an @-prefixed file path."""
     if raw.startswith("@"):
         return json.loads(Path(raw[1:]).read_text(encoding="utf-8"))
     return json.loads(raw)
+
+
+def _resolve_sdk(mode: str) -> AgentSDK:
+    """Resolve an SDK instance from a mode string."""
+    factory = _SDK_FACTORIES.get(mode, AgentSDK.default)
+    return factory()
 
 
 def _build_actions(sdk: AgentSDK, payload: list[dict[str, Any]]) -> list[Any]:
@@ -39,11 +55,18 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--scenario", required=True, help=_json_help)
     parser.add_argument("--actions", required=True, help=_json_help)
     parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument(
+        "--sdk-mode",
+        choices=_SDK_MODES,
+        default="default",
+        dest="sdk_mode",
+        help="SDK factory variant.",
+    )
 
 
 def _handle_decide(args: argparse.Namespace) -> int:
     """Run a one-shot SDK decision and print JSON."""
-    sdk = AgentSDK.default()
+    sdk = _resolve_sdk(args.sdk_mode)
     personality = sdk.personality(_load_json_argument(args.personality))
     scenario_payload = _load_json_argument(args.scenario)
     actions = _build_actions(sdk, _load_json_argument(args.actions))
@@ -64,7 +87,7 @@ def _handle_decide(args: argparse.Namespace) -> int:
 
 def _handle_simulate(args: argparse.Namespace) -> int:
     """Run a temporal or self-aware simulation and print JSON."""
-    sdk = AgentSDK.default()
+    sdk = _resolve_sdk(args.sdk_mode)
     personality = sdk.personality(_load_json_argument(args.personality))
     actions = _build_actions(sdk, _load_json_argument(args.actions))
     scenario_payloads = _load_json_argument(args.scenarios)
@@ -120,6 +143,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON object or @file path for self-aware simulation.",
     )
     simulate_parser.add_argument("--temperature", type=float, default=1.0)
+    simulate_parser.add_argument(
+        "--sdk-mode",
+        choices=_SDK_MODES,
+        default="default",
+        dest="sdk_mode",
+        help="SDK factory variant.",
+    )
     simulate_parser.set_defaults(handler=_handle_simulate)
 
     return parser

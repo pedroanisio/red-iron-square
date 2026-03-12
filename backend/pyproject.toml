@@ -13,6 +13,8 @@ dependencies = [
     "structlog>=24.1",
     "python-dotenv>=1.0",
     "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "flask>=3.1",
     "anthropic>=0.49",
     "openai>=1.68",
 ]
@@ -21,14 +23,6 @@ dependencies = [
 red-iron-square = "src.sdk.cli:main"
 red-iron-square-ui = "src.ui.app:main"
 
-[project.optional-dependencies]
-api = [
-    "uvicorn[standard]>=0.30",
-]
-ui = [
-    "flask>=3.1",
-]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -36,7 +30,6 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "httpx>=0.28",
-    "flask>=3.1",
     "pre-commit>=4.5.1",
 ]
 

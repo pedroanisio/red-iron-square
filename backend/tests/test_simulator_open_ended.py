@@ -90,14 +90,15 @@ class TestSimulatorDynamicActions:
         resolved = sim._resolve_tick_actions()
         assert len(resolved) == 2
 
-    def test_static_actions_take_precedence(self, personality, actions):
-        """When static actions are provided, pipeline is not consulted."""
+    def test_pipeline_overrides_static_actions(self, personality, actions):
+        """When pipeline is set, it takes precedence over static actions."""
         backend = StaticProposerBackend(defaults=_default_proposals())
         sdk = AgentSDK.with_open_actions(proposer_backend=backend)
         client = sdk.simulator(personality, actions)
         sim = client.simulator
         resolved = sim._resolve_tick_actions()
-        assert resolved == list(actions)
+        names = {a.name for a in resolved}
+        assert names == {"Engage", "Observe"}
 
     def test_tick_with_pipeline(self, personality, scenario):
         """Full tick works with pipeline-proposed actions."""

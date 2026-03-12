@@ -18,6 +18,7 @@ SDK_FACTORIES: dict[str, Callable[[], AgentSDK]] = {
     "efe": AgentSDK.with_efe,
     "constructed_emotion": AgentSDK.with_constructed_emotion,
     "self_evidencing": AgentSDK.with_self_evidencing,
+    "open_actions": AgentSDK.with_open_actions,
 }
 
 
@@ -52,8 +53,8 @@ class RunClientBuilder:
     @staticmethod
     def _resolve_sdk(config: dict[str, Any]) -> AgentSDK:
         """Resolve SDK factory from config's sdk_mode field."""
-        sdk_mode = config.get("sdk_mode", "efe")
-        factory = SDK_FACTORIES.get(sdk_mode, AgentSDK.with_efe)
+        sdk_mode = config.get("sdk_mode", "default")
+        factory = SDK_FACTORIES.get(sdk_mode, AgentSDK.default)
         return factory()
 
     @staticmethod

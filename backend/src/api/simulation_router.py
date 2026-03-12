@@ -84,33 +84,23 @@ def create_simulation_router() -> APIRouter:
                 status_code=422,
                 detail="At least one proposal required.",
             )
+        from src.action_space.proposer import StaticProposerBackend
+
         proposals = _build_proposals(request.proposals)
-        sdk = AgentSDK.with_open_actions()
+        backend = StaticProposerBackend(defaults=proposals)
+        sdk = AgentSDK.with_open_actions(proposer_backend=backend)
         personality = sdk.personality(request.personality)
         scenario = sdk.scenario(
             request.scenario.values,
             name=request.scenario.name,
             description=request.scenario.description,
         )
-        from src.action_space.encoder import ActionEncoder, HeuristicEncoderBackend
-
-        encoder = ActionEncoder(
-            dimension_registry=sdk.registry,
-            backend=HeuristicEncoderBackend(),
-        )
-        actions = encoder.encode_batch(proposals)
-        result = sdk.decide(
+        result = sdk.propose_and_decide(
             personality,
             scenario,
-            actions,
             temperature=request.temperature,
         )
-        return {
-            "data": {
-                **result.model_dump(),
-                "proposals": [p.model_dump() for p in proposals],
-            }
-        }
+        return {"data": result.model_dump()}
 
     return router
 
@@ -121,20 +111,11 @@ def _build_proposals(inputs: list[Any]) -> list[Any]:
         ClassicActionProposal,
         TextActionProposal,
         ToolActionProposal,
-        _ProposalBase,
     )
 
-    proposals: list[_ProposalBase] = []
+    proposals: list[ClassicActionProposal | TextActionProposal | ToolActionProposal] = []
     for inp in inputs:
-        if inp.kind == "classic":
-            proposals.append(
-                ClassicActionProposal(
-                    name=inp.name,
-                    description=inp.description,
-                    modifiers=inp.modifiers or {},
-                )
-            )
-        elif inp.kind == "text":
+        if inp.kind == "text":
             proposals.append(
                 TextActionProposal(
                     name=inp.name,

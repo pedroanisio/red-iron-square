@@ -1068,24 +1068,17 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "fastapi" },
+    { name = "flask" },
     { name = "numpy" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "structlog" },
-]
-
-[package.optional-dependencies]
-api = [
     { name = "uvicorn", extra = ["standard"] },
-]
-ui = [
-    { name = "flask" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "flask" },
     { name = "httpx" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -1098,19 +1091,17 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.49" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "flask", marker = "extra == 'ui'", specifier = ">=3.1" },
+    { name = "flask", specifier = ">=3.1" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "openai", specifier = ">=1.68" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "structlog", specifier = ">=24.1" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.30" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["api", "ui"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "flask", specifier = ">=3.1" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mypy", specifier = ">=1.10" },
     { name = "pre-commit", specifier = ">=4.5.1" },

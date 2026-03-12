@@ -96,9 +96,12 @@ class TemporalSimulator:
         self._action_pipeline = pipeline
 
     def _resolve_tick_actions(self) -> list[Action]:
-        """Return static actions or dynamically proposed actions."""
-        if self.actions:
-            return self.actions
+        """Return dynamically proposed actions (when pipeline set), else static.
+
+        When an action pipeline is registered it takes precedence over static
+        actions. Static actions are the fallback if the pipeline produces
+        nothing or if no pipeline is configured.
+        """
         if self._action_pipeline is not None:
             from src.action_space.pipeline import ActionPipeline
 
