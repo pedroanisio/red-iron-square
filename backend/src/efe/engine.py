@@ -217,6 +217,30 @@ class EFEEngine:
             default=self._params.default_epistemic,
         )
 
+    def compute_efe_breakdown(
+        self,
+        personality: PersonalityVector,
+        scenario: Scenario,
+        actions: Sequence[Action],
+        activations_override: np.ndarray | None = None,
+    ) -> dict[str, dict[str, float]]:
+        """Return per-action pragmatic, epistemic, and total EFE values."""
+        breakdown: dict[str, dict[str, float]] = {}
+        for action in actions:
+            pragmatic = self._pragmatic_value(
+                personality, scenario, action, activations_override,
+            )
+            epistemic = self._epistemic_value(action)
+            w_O = self._O * self._params.w_base
+            c_scale = 1.0 + self._params.c_pragmatic_scale * self._C_trait
+            total = c_scale * (1.0 - w_O) * (-pragmatic) + w_O * epistemic
+            breakdown[action.name] = {
+                "pragmatic": round(pragmatic, 6),
+                "epistemic": round(epistemic, 6),
+                "total": round(total, 6),
+            }
+        return breakdown
+
     @staticmethod
     def _kl_divergence(q: np.ndarray, log_p: np.ndarray) -> float:
         """Sum of per-dimension KL(q || p) with numerical safety."""

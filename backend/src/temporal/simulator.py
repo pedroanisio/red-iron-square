@@ -55,7 +55,7 @@ class TemporalSimulator:
         rng: np.random.Generator | None = None,
         precision_engine: PrecisionEngine | None = None,
         constructed_affect: ConstructedAffectiveEngine | None = None,
-        use_precision_state: bool = False,
+        use_precision_state: bool | None = None,
         precision_state_params: PrecisionStateParams | None = None,
         narrative_model: NarrativeGenerativeModel | None = None,
         agent_runtime: System2RuntimeProtocol | None = None,
@@ -74,7 +74,10 @@ class TemporalSimulator:
         self._tick_counter = 0
         self._precision_engine = precision_engine
         self._constructed_affect = constructed_affect
-        self._use_precision_state = use_precision_state
+        self._use_precision_state = (
+            use_precision_state if use_precision_state is not None
+            else (precision_engine is not None)
+        )
         self._precision_state_params = precision_state_params or PrecisionStateParams()
         self._narrative_model = narrative_model
         self._self_evidencing = self_evidencing
@@ -187,6 +190,21 @@ class TemporalSimulator:
         """Check if the engine supports EFE-based decisions."""
         return hasattr(self.engine, "bind_memory")
 
+    def _compute_efe_breakdown(
+        self,
+        scenario: Scenario,
+        activations: np.ndarray,
+    ) -> dict[str, dict[str, float]] | None:
+        """Compute per-action EFE decomposition when EFE engine is active."""
+        if not hasattr(self.engine, "compute_efe_breakdown"):
+            return None
+        fn = getattr(self.engine, "compute_efe_breakdown")
+        result: dict[str, dict[str, float]] = fn(
+            self.personality, scenario, self.actions,
+            activations_override=activations,
+        )
+        return result
+
     def tick(self, scenario: Scenario, outcome: float | None = None) -> TickResult:
         """Execute one simulation tick."""
         state_before = self.state.snapshot()
@@ -255,6 +273,8 @@ class TemporalSimulator:
             is_still_acting=is_acting,
         )
 
+        efe_breakdown = self._compute_efe_breakdown(scenario, activations)
+
         precision, pred_errors = self._compute_precision(new_state, scenario)
         affect_sig = run_constructed_affect(
             self._constructed_affect,
@@ -307,6 +327,7 @@ class TemporalSimulator:
             precision=precision,
             prediction_errors=pred_errors,
             affect_signal=affect_sig,
+            efe_breakdown=efe_breakdown,
         )
 
     @property
