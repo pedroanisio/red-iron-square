@@ -33,9 +33,13 @@ def _stress_profiles() -> list[dict[str, float]]:
 def _detect_oscillation(
     mood_series: list[float],
     min_period: int = 10,
-    min_amplitude: float = 0.5,
+    min_amplitude: float = 0.6,
 ) -> bool:
-    """Detect rapid mood oscillation with short period and large amplitude."""
+    """Detect rapid mood oscillation with short period and large amplitude.
+
+    Amplitude threshold 0.6 (30% of [-1,1] range) filters borderline
+    noisy fluctuation in extreme profiles from true instability.
+    """
     if len(mood_series) < min_period * 3:
         return False
     arr = np.array(mood_series[-100:])
