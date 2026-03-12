@@ -94,6 +94,7 @@ describe("demoReducer", () => {
     );
     expect(completed.audioFallback).toBe("Audio streaming not configured yet.");
     expect(completed.pending).toBe(false);
+    expect(completed.errorMessage).toBeNull();
   });
 
   it("resets transcripts and counters on swap", () => {
@@ -117,5 +118,59 @@ describe("demoReducer", () => {
     expect(swapped.session?.turn_count).toBe(0);
     expect(swapped.session?.agents[0].transcript).toEqual([]);
     expect(swapped.statusLine).toMatch(/same faces, different inner lives/i);
+  });
+
+  it("recovers interaction state after a failed request", () => {
+    const failed = demoReducer(baseState, {
+      type: "requestFailed",
+      message: "Unable to send that scenario.",
+    });
+
+    expect(failed.pending).toBe(false);
+    expect(failed.statusLine).toBe("Unable to send that scenario.");
+    expect(failed.errorMessage).toBe("Unable to send that scenario.");
+  });
+
+  it("surfaces reconnect and resync states", () => {
+    const reconnecting = demoReducer(baseState, {
+      type: "reconnectStarted",
+    });
+    const resynced = demoReducer(reconnecting, {
+      type: "sessionResynced",
+      session: {
+        session_id: "demo-123",
+        act_number: 1,
+        turn_count: 2,
+        agents: [
+          {
+            key: "luna",
+            name: "Luna",
+            summary: "Thoughtful. Cautious. Feels things deeply.",
+            mood: -0.2,
+            energy: 0.4,
+            calm: 0.5,
+            emotion_label: "Relief",
+            transcript: ["We're back."],
+            speaking: false,
+          },
+          {
+            key: "marco",
+            name: "Marco",
+            summary: "Curious. Bold. Bounces back fast.",
+            mood: 0.3,
+            energy: 0.7,
+            calm: 0.6,
+            emotion_label: "Ready",
+            transcript: ["Let's keep going."],
+            speaking: false,
+          },
+        ],
+      },
+    });
+
+    expect(reconnecting.statusLine).toMatch(/rejoining the scene/i);
+    expect(reconnecting.socketStatus).toBe("connecting");
+    expect(resynced.statusLine).toMatch(/back in sync/i);
+    expect(resynced.session?.turn_count).toBe(2);
   });
 });

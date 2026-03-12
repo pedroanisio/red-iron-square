@@ -8,6 +8,7 @@ from src.self_evidencing.params import SelfEvidencingParams
 
 
 def _balanced() -> dict[str, float]:
+    """Return a balanced personality profile with all traits at 0.5."""
     return {k: 0.5 for k in "OCEANRIT"}
 
 
@@ -173,3 +174,143 @@ class TestSelfEvidencingIntegration:
         )
         rec = sim.tick(scenario)
         assert rec.self_evidencing_weights is None
+
+
+class TestSEWeightsModulateBoltzmannLogits:
+    """Verify SE weights modulate Boltzmann logits via temperature scaling.
+
+    The self-evidencing modulator adjusts effective temperature based on
+    how concentrated the self-model's predicted distribution is.  A drifted
+    self-model produces skewed predictions, which lowers the effective
+    temperature and narrows the action distribution.  An aligned self-model
+    produces near-uniform predictions, leaving the temperature unchanged.
+    """
+
+    @staticmethod
+    def _high_drift_traits() -> dict[str, float]:
+        """Personality that maximally diverges from balanced self-model."""
+        return {
+            "O": 1.0,
+            "C": 0.0,
+            "E": 1.0,
+            "A": 0.0,
+            "N": 1.0,
+            "R": 0.0,
+            "I": 1.0,
+            "T": 0.0,
+        }
+
+    @staticmethod
+    def _aligned_traits() -> dict[str, float]:
+        """Personality perfectly aligned with self-model."""
+        return {k: 0.5 for k in "OCEANRIT"}
+
+    @staticmethod
+    def _make_actions(sdk: AgentSDK) -> list:
+        """Build a diverse action set to amplify distribution differences."""
+        return [
+            sdk.action("Bold", {"O": 0.6, "E": 0.4, "C": -0.2}),
+            sdk.action("Cautious", {"C": 0.5, "N": -0.3, "O": -0.2}),
+            sdk.action("Social", {"E": 0.5, "A": 0.4}),
+        ]
+
+    def _collect_probs(
+        self,
+        sdk: AgentSDK,
+        traits: dict[str, float],
+        psi_hat_traits: dict[str, float],
+        n_ticks: int = 30,
+        seed: int = 42,
+    ) -> list[list[float]]:
+        """Run n_ticks and collect probability vectors."""
+        personality = sdk.personality(traits)
+        psi_hat = sdk.initial_self_model(psi_hat_traits)
+        scenario = sdk.scenario(_balanced(), name="test_se")
+        actions = self._make_actions(sdk)
+        sim = sdk.self_aware_simulator(
+            personality,
+            psi_hat,
+            actions,
+            rng=np.random.default_rng(seed),
+        )
+        return [sim.tick(scenario).probabilities for _ in range(n_ticks)]
+
+    def test_drifted_vs_aligned_distributions_differ(self) -> None:
+        """Drifted self-model produces different distribution than aligned.
+
+        Proves SE modulates action selection logits.
+        """
+        se_params = SelfEvidencingParams(beta_0=3.0)
+        sdk = AgentSDK.with_self_evidencing(self_evidencing_params=se_params)
+
+        aligned_probs = self._collect_probs(
+            sdk,
+            self._aligned_traits(),
+            self._aligned_traits(),
+        )
+        drifted_probs = self._collect_probs(
+            sdk,
+            self._high_drift_traits(),
+            self._aligned_traits(),
+        )
+
+        aligned_means = np.mean(aligned_probs, axis=0)
+        drifted_means = np.mean(drifted_probs, axis=0)
+
+        dist = float(np.linalg.norm(aligned_means - drifted_means))
+        assert dist > 0.01, (
+            f"SE-modulated distributions should differ; L2 distance={dist:.6f}"
+        )
+
+    def test_se_narrows_distribution_for_drifted_model(self) -> None:
+        """SE reduces entropy for drifted self-model.
+
+        Lower temperature from SE yields more concentrated distributions.
+        """
+        se_params = SelfEvidencingParams(beta_0=3.0)
+        sdk_se = AgentSDK.with_self_evidencing(self_evidencing_params=se_params)
+        sdk_no_se = AgentSDK.with_constructed_emotion()
+
+        drifted = self._high_drift_traits()
+        balanced_psi = self._aligned_traits()
+
+        probs_se = self._collect_probs(sdk_se, drifted, balanced_psi)
+        probs_no = self._collect_probs(sdk_no_se, drifted, balanced_psi)
+
+        def mean_entropy(prob_list: list[list[float]]) -> float:
+            entropies = []
+            for p in prob_list:
+                arr = np.array(p)
+                arr = arr[arr > 1e-10]
+                entropies.append(-float(np.sum(arr * np.log(arr))))
+            return float(np.mean(entropies))
+
+        entropy_se = mean_entropy(probs_se)
+        entropy_no = mean_entropy(probs_no)
+
+        assert entropy_se < entropy_no, (
+            f"SE should reduce entropy for drifted model: "
+            f"SE={entropy_se:.4f} vs no-SE={entropy_no:.4f}"
+        )
+
+    def test_aligned_model_minimal_se_effect(self) -> None:
+        """Aligned self-model sees minimal SE temperature effect.
+
+        Distributions with and without SE should be similar.
+        """
+        se_params = SelfEvidencingParams(beta_0=1.0)
+        sdk_se = AgentSDK.with_self_evidencing(self_evidencing_params=se_params)
+        sdk_no_se = AgentSDK.with_constructed_emotion()
+
+        aligned = self._aligned_traits()
+
+        probs_se = self._collect_probs(sdk_se, aligned, aligned)
+        probs_no = self._collect_probs(sdk_no_se, aligned, aligned)
+
+        se_means = np.mean(probs_se, axis=0)
+        no_means = np.mean(probs_no, axis=0)
+
+        dist = float(np.linalg.norm(se_means - no_means))
+        assert dist < 0.15, (
+            f"Aligned model should see minimal SE effect; L2 distance={dist:.6f}"
+        )

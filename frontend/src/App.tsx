@@ -27,6 +27,7 @@ function App(): ReactElement {
           line={state.statusLine}
           socketStatus={state.socketStatus}
           audioFallback={state.audioFallback}
+          errorMessage={state.errorMessage}
         />
       }
       left={

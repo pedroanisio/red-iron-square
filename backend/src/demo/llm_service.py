@@ -196,19 +196,38 @@ class DemoLLMService:
         tick: dict[str, Any],
     ) -> str:
         mood = float(tick.get("state_after", {}).get("mood", 0.0))
+        neuroticism = agent.traits.get("N", 0.5)
+        resilience = agent.traits.get("R", 0.5)
+        openness = agent.traits.get("O", 0.5)
+        scene = scenario.name.lower()
         if mood < -0.2:
+            if neuroticism > 0.6:
+                return (
+                    f"I can't stop turning {scene} over in my head. "
+                    f"Every angle I look at it from just makes the knot tighter."
+                )
             return (
-                f"I can't stop thinking about {scenario.name.lower()}. "
-                f"It leaves me unsettled, and I'm still trying to steady myself."
+                f"{scene.capitalize()} hit harder than I expected. "
+                f"I need a moment, but I'll figure this out."
             )
         if mood > 0.2:
+            if openness > 0.6:
+                return (
+                    f"Something about {scene} just clicked. "
+                    f"I can already feel the possibilities opening up."
+                )
             return (
-                f"I keep coming back to {scenario.name.lower()}. "
-                f"It feels like something I can step toward as {agent.name}."
+                f"I keep coming back to {scene}. "
+                f"It feels like solid ground, something I can build on."
+            )
+        if resilience > 0.6:
+            return (
+                f"I'm weighing {scene} from every side. "
+                f"I don't have the answer yet, but I trust I'll land somewhere good."
             )
         return (
-            f"I'm still sorting out what {scenario.name.lower()} means for me. "
-            "Part of me sees the risk, and part of me wants to keep going."
+            f"I'm still sitting with what {scene} means. "
+            "Part of me sees the risk, part of me wants to keep going."
         )
 
     @staticmethod

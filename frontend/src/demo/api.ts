@@ -2,8 +2,7 @@ import type { DemoApiClient, DemoSession } from "./types";
 
 type Envelope<T> = { data: T };
 const API_BASE_URL =
-  import.meta.env.VITE_RED_IRON_SQUARE_API_URL?.replace(/\/$/, "") ??
-  (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
+  import.meta.env.VITE_RED_IRON_SQUARE_API_URL?.replace(/\/$/, "") ?? "";
 
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
@@ -18,10 +17,16 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
 
 export function createDemoApiClient(baseUrl = API_BASE_URL): DemoApiClient {
   return {
-    createSession() {
+    createSession(signal) {
       return request<DemoSession>(`${baseUrl}/demo/sessions`, {
         method: "POST",
+        signal,
         body: JSON.stringify({ act_number: 1 }),
+      });
+    },
+    getSession(sessionId, signal) {
+      return request<DemoSession>(`${baseUrl}/demo/sessions/${sessionId}`, {
+        signal,
       });
     },
     runScripted(sessionId, scenarioKey) {

@@ -12,18 +12,20 @@ export function ScenarioPanel({
   scenario: string;
   pending: boolean;
   onPreset: (scenarioKey: string) => void;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string) => Promise<boolean>;
   onSwap: () => void;
 }): ReactElement {
   const [value, setValue] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (value.trim().length === 0) {
       return;
     }
-    onSubmit(value);
-    setValue("");
+    const wasSent = await onSubmit(value);
+    if (wasSent) {
+      setValue("");
+    }
   }
 
   return (
@@ -41,6 +43,7 @@ export function ScenarioPanel({
           value={value}
           placeholder="What if Luna runs into an old friend on the street?"
           onChange={(event) => setValue(event.target.value)}
+          disabled={pending}
         />
         <div className="scenario-actions">
           <button type="submit" className="action-button" disabled={pending}>

@@ -42,6 +42,10 @@ class DemoSessionStore:
         except KeyError as exc:
             raise KeyError(session_id) from exc
 
+    def list(self) -> list[DemoSessionRecord]:
+        """Return all active demo session records."""
+        return list(self._sessions.values())
+
     def add_event(self, session_id: str, event: DemoEvent) -> None:
         """Persist one event and fan it out to subscribers."""
         record = self.get(session_id)

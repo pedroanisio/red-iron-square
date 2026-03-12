@@ -64,3 +64,32 @@ class LLMInvocationResult(BaseModel):
 
     raw_text: str
     metadata: LLMInvocationMetadata
+
+
+class MatrixProposal(BaseModel):
+    """LLM-proposed A/B matrices for narrative generative model (§10).
+
+    A-matrix: observation likelihood p(o|s,a).
+    B-matrix: state transitions p(s'|s,a).
+    Both must be non-negative and row-normalized.
+    """
+
+    a_matrix: list[list[list[float]]]
+    b_matrix: list[list[list[float]]]
+    rationale: str = ""
+    n_states: int = Field(gt=0)
+    n_actions: int = Field(gt=0)
+
+
+class EmotionConstructor(BaseModel):
+    """LLM-constructed emotion from precision-weighted prediction errors.
+
+    Constrained by System 1 valence/arousal signals to prevent
+    narratively plausible but psychologically inconsistent categorizations.
+    """
+
+    label: str
+    description: str
+    valence_sign: Literal["positive", "negative", "neutral"]
+    arousal_level: Literal["high", "low"]
+    confidence: float = Field(ge=0.0, le=1.0)

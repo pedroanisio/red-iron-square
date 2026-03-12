@@ -15,12 +15,12 @@ This backlog turns the current architecture direction into an execution sequence
 
 - packaged Python backend with `uv` dependency management
 - public SDK in `backend/src/sdk`
-- public API facade in `backend/src/simulation`
+- public SDK facade in `backend/src/sdk`
 - FastAPI transport in `backend/src/api`
 - Flask telemetry UI in `backend/src/ui`
 - SQLite persistence in `backend/src/api/run_store.py`
 - Anthropic + OpenAI adapters in `backend/src/llm`
-- 237 tests, 91% coverage
+- 457 tests, 91% coverage
 
 The intended GenAI integration assumption for this backlog is the **Anthropic Python library** as the LLM client/runtime boundary. The simulation engine remains the deterministic source of truth. Anthropic models are used only for:
 
@@ -53,7 +53,7 @@ All tasks complete. Architecture documented in CLAUDE.md. Clear module boundarie
 - `src/temporal` — simulator, state transitions, affective engine, memory
 - `src/self_model` — self-awareness, identity drift, self-related emotions
 - `src/sdk` — domain orchestration convenience layer
-- `src/simulation` — public API facade re-exporting from all domain modules
+- `src/sdk` — public SDK facade re-exporting from all domain modules
 - `src/api` — FastAPI external service boundary
 - `src/llm` — LLM integration boundary (adapters, runtime, schemas)
 - `src/ui` — Flask telemetry frontend
@@ -414,7 +414,7 @@ Tests: `test_orchestrator_store.py` (4), `test_orchestrator_agents.py` (6), `tes
 - API contract tests: test_api_basic.py, test_api_runs.py, test_api_list_runs.py, test_api_agents.py
 - UI integration tests: test_ui.py with FakeUiClient (rendering, routes, accessibility, HTMX)
 - e2e test with real Anthropic: test_e2e.py (requires credentials)
-- 237 tests total, 91% coverage
+- 457 tests total, 91% coverage
 
 ### Observability — DONE
 
@@ -442,6 +442,7 @@ Tests: `test_orchestrator_store.py` (4), `test_orchestrator_agents.py` (6), `tes
 - Database path configurable (defaults to `.data/red_iron_square.sqlite3`)
 - `FLASK_SECRET_KEY`, `FLASK_DEBUG` for UI
 - `RED_IRON_SQUARE_API_URL` for UI-to-API connection
+- `ELEVENLABS_API_KEY` for Two Minds demo voice synthesis
 - Replay seed behavior documented and functional
 
 ## Summary

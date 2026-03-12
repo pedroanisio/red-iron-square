@@ -248,11 +248,13 @@ git commit -m "feat: add llm flow for two minds demo"
 
 ## Task 5: Add ElevenLabs Audio Streaming With Graceful Degradation
 
+> **Status:** Partially complete. `audio.py` and `test_demo_audio.py` are implemented (26 tests). Remaining: wire `audio.py` into `service.py` to replace `audio_unavailable` events with real TTS calls.
+
 **Files:**
-- Create: `backend/src/demo/audio.py`
-- Create: `backend/tests/test_demo_audio.py`
-- Modify: `backend/src/demo/service.py`
-- Modify: `backend/src/demo/schemas.py`
+- Create: `backend/src/demo/audio.py` — **DONE**
+- Create: `backend/tests/test_demo_audio.py` — **DONE**
+- Modify: `backend/src/demo/service.py` — pending
+- Modify: `backend/src/demo/schemas.py` — pending
 
 **Step 1: Write the failing audio tests**
 

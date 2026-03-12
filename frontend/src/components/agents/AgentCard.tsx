@@ -24,7 +24,9 @@ export function AgentCard({ agent }: { agent: DemoAgent }): ReactElement {
         <StateBar label="Calm" value={agent.calm} tone="calm" />
       </div>
       <ThinkingState visible={agent.speaking} label={`${agent.name} is speaking`} />
-      <blockquote className="agent-voice">{latestLine}</blockquote>
+      <blockquote className="agent-voice" aria-live="polite">
+        {latestLine}
+      </blockquote>
     </article>
   );
 }

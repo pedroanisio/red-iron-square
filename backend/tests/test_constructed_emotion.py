@@ -12,6 +12,7 @@ from src.constructed_emotion.params import ConstructedEmotionParams
 from src.constructed_emotion.surprise import SurpriseSpikeDetector
 from src.precision.state import PrecisionState, PredictionErrors
 from src.sdk import AgentSDK
+from src.temporal.emotions import EmotionLabel, EmotionReading
 
 
 def _make_precision(
@@ -232,6 +233,35 @@ class TestConstructedAffectiveEngine:
         assert sig.is_surprise_spike
         assert sig.valence > 0.0
         assert len(sig.constructed_emotions) > 0
+
+    def test_callback_invoked_on_surprise_spike(self) -> None:
+        """When emotion_callback is set, it replaces heuristic on spikes."""
+        captured: list[tuple[float, float, list[float], str]] = []
+
+        def _mock_callback(
+            valence: float, arousal: float, errors: list[float], context: str
+        ) -> list[EmotionReading]:
+            captured.append((valence, arousal, errors, context))
+            return [
+                EmotionReading(
+                    label=EmotionLabel.EXCITEMENT,
+                    intensity=0.99,
+                    description="LLM-constructed",
+                )
+            ]
+
+        params = ConstructedEmotionParams(surprise_warmup_threshold=0.01)
+        engine = ConstructedAffectiveEngine(params, emotion_callback=_mock_callback)
+        sdk = AgentSDK.default()
+        personality = sdk.personality(_balanced())
+        pi = _make_precision(level_0=np.ones(5) * 5.0)
+        eps_big = _make_errors(level_0=np.ones(5) * 0.5)
+        eps_small = _make_errors(level_0=np.ones(5) * 0.01)
+        engine.process_tick(pi, eps_big, personality)
+        sig = engine.process_tick(pi, eps_small, personality)
+        assert sig.is_surprise_spike
+        assert len(captured) >= 1
+        assert sig.constructed_emotions[0].description == "LLM-constructed"
 
     def test_no_spike_no_emotions(self) -> None:
         engine = ConstructedAffectiveEngine()

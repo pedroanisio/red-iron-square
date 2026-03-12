@@ -11,7 +11,7 @@ from src.personality.vectors import Action
 from src.precision.state import PrecisionSnapshot, PredictionErrorSnapshot
 from src.self_model.simulator import SelfAwareTickResult
 from src.temporal.emotions import EmotionReading
-from src.temporal.simulator import TickResult
+from src.temporal.tick_result import TickResult
 
 
 def vector_to_dict(values: np.ndarray, registry: DimensionRegistry) -> dict[str, float]:

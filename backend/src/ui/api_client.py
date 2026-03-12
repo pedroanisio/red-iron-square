@@ -14,6 +14,9 @@ from typing import Any
 
 from src.ui.models import (
     BranchResult,
+    DemoScriptedResult,
+    DemoSession,
+    DemoSwapResult,
     ReplayResult,
     RunListItem,
     RunSummary,
@@ -39,6 +42,50 @@ class ApiClient:
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Create one run."""
         data: dict[str, Any] = self._request("POST", "/runs", payload)["data"]
+        return data
+
+    def list_demo_sessions(self) -> list[DemoSession]:
+        """Fetch all active demo sessions."""
+        data: list[DemoSession] = self._request("GET", "/demo/sessions")["data"]
+        return data
+
+    def create_demo_session(self, payload: dict[str, Any]) -> DemoSession:
+        """Create one demo session."""
+        data: DemoSession = self._request("POST", "/demo/sessions", payload)["data"]
+        return data
+
+    def get_demo_session(self, session_id: str) -> DemoSession:
+        """Fetch one demo session."""
+        data: DemoSession = self._request("GET", f"/demo/sessions/{session_id}")["data"]
+        return data
+
+    def run_demo_scripted(
+        self,
+        session_id: str,
+        scenario_key: str,
+    ) -> DemoScriptedResult:
+        """Run one scripted demo scenario."""
+        data: DemoScriptedResult = self._request(
+            "POST",
+            f"/demo/sessions/{session_id}/scripted/{scenario_key}",
+        )["data"]
+        return data
+
+    def run_demo_custom(self, session_id: str, payload: dict[str, Any]) -> DemoSession:
+        """Run one custom demo scenario."""
+        data: DemoSession = self._request(
+            "POST",
+            f"/demo/sessions/{session_id}/scenarios",
+            payload,
+        )["data"]
+        return data
+
+    def swap_demo_personalities(self, session_id: str) -> DemoSwapResult:
+        """Swap demo personalities and reset the room."""
+        data: DemoSwapResult = self._request(
+            "POST",
+            f"/demo/sessions/{session_id}/swap",
+        )["data"]
         return data
 
     def get_run(self, run_id: str) -> RunSummary:

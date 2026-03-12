@@ -19,6 +19,10 @@ def create_demo_router(service: DemoSessionService) -> APIRouter:
     """Build demo routes."""
     router = APIRouter(tags=["demo"])
 
+    @router.get("/demo/sessions")
+    def list_sessions() -> dict[str, list[dict[str, Any]]]:
+        return {"data": service.list_sessions()}
+
     @router.post("/demo/sessions")
     def create_session(body: DemoSessionCreateRequest) -> dict[str, Any]:
         return {"data": service.create_session(body.act_number)}

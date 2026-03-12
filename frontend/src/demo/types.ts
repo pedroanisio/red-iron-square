@@ -38,11 +38,13 @@ export type DemoState = {
   statusLine: string;
   pending: boolean;
   audioFallback: string | null;
+  errorMessage: string | null;
   socketStatus: "idle" | "connecting" | "open" | "closed";
 };
 
 export type DemoApiClient = {
-  createSession: () => Promise<DemoSession>;
+  createSession: (signal?: AbortSignal) => Promise<DemoSession>;
+  getSession: (sessionId: string, signal?: AbortSignal) => Promise<DemoSession>;
   runScripted: (sessionId: string, scenarioKey: string) => Promise<void>;
   runCustom: (sessionId: string, text: string) => Promise<void>;
   swap: (sessionId: string) => Promise<void>;

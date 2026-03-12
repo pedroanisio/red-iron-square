@@ -7,8 +7,9 @@ from src.temporal.generators import (
     generate_scenario_sequence,
 )
 from src.temporal.memory import MemoryBank, MemoryEntry
-from src.temporal.simulator import TemporalSimulator, TickResult
+from src.temporal.simulator import TemporalSimulator
 from src.temporal.state import AgentState, StateTransitionParams, update_state
+from src.temporal.tick_result import TickResult
 
 __all__ = [
     "AgentState",

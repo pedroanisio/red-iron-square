@@ -1,0 +1,191 @@
+<!--
+DISCLAIMER: No information within should be taken for granted.
+Any statement or premise not backed by a real logical definition
+or verifiable reference may be invalid, erroneous, or a hallucination.
+-->
+{% extends "ui/layout.html" %}
+
+{% macro agent_meter(label, value, lo, hi, color) %}
+<div class="bar-row">
+  <span class="bar-label">{{ label }}</span>
+  <div class="bar-track" role="progressbar" aria-valuenow="{{ value }}" aria-valuemin="{{ lo }}" aria-valuemax="{{ hi }}" aria-label="{{ label }}">
+    {% set pct = ((value - lo) / (hi - lo) * 100) | round | int %}
+    <div class="bar-fill" style="width:{{ pct }}%; background:{{ color }};"></div>
+  </div>
+  <span class="bar-val">{{ "%.2f" | format(value) }}</span>
+</div>
+{% endmacro %}
+
+{% block topbar_right %}
+  {% if demo_session_id %}<span class="run-id" title="{{ demo_session_id }}">{{ demo_session_id }}</span>{% endif %}
+  <span class="badge {{ 'badge-ok' if api_ok else 'badge-err' }}">{{ "Connected" if api_ok else "Unavailable" }}</span>
+{% endblock %}
+
+{% block content %}
+<style>
+  .demo-grid { display:grid; grid-template-columns: 300px 1fr; gap: 2rem; align-items: start; }
+  .demo-sidebar { display:flex; flex-direction:column; gap:1rem; }
+  .session-rail { list-style:none; }
+  .session-chip {
+    display:block; padding:12px; text-decoration:none; color:var(--text);
+    border:1px solid var(--border); margin-bottom:8px; background:linear-gradient(180deg, var(--surface), var(--raised));
+  }
+  .session-chip:hover { border-color: var(--red); }
+  .session-chip.active { border-color: var(--red); background: linear-gradient(180deg, var(--red-dim), var(--raised)); }
+  .session-chip-id { font-family:var(--mono); font-size:12px; color:var(--cream); }
+  .session-chip-meta { font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--text-3); margin-top:4px; }
+  .demo-hero {
+    padding: 20px; border:1px solid var(--border); background:
+      linear-gradient(135deg, rgba(200,33,10,.16), transparent 45%),
+      linear-gradient(180deg, var(--raised), var(--surface));
+  }
+  .demo-kicker { font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--red-bright); }
+  .demo-title { font-family:var(--display); font-size:34px; text-transform:uppercase; line-height:1; margin-top:10px; color:var(--cream); }
+  .demo-copy { margin-top:12px; max-width:52ch; color:var(--text-2); line-height:1.7; }
+  .demo-meta { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+  .demo-meta .stat { min-height: 110px; }
+  .scenario-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .scenario-btn { margin-top:0; }
+  .agent-deck { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .agent-card { border-top: 3px solid var(--red); }
+  .agent-header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom: 14px; }
+  .agent-name { font-family:var(--display); font-size:20px; text-transform:uppercase; color:var(--cream); }
+  .agent-summary { color:var(--text-2); margin-top:6px; line-height:1.6; }
+  .agent-emotion { font-family:var(--mono); font-size:11px; text-transform:uppercase; color:var(--amber); }
+  .empty-room { padding: 36px 20px; text-align:center; color:var(--text-3); }
+  @media (max-width: 980px) {
+    .demo-grid, .agent-deck, .scenario-grid, .demo-meta { grid-template-columns: 1fr; }
+  }
+</style>
+
+<main class="demo-grid" id="main-content" role="main">
+  <aside class="demo-sidebar" role="complementary" aria-label="Demo session controls">
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Create Session</span></div>
+      <div class="card-bd">
+        <form method="post" action="{{ url_for('create_demo_session_ui') }}">
+          <div class="field">
+            <label for="act_number">Act Number</label>
+            <input id="act_number" name="act_number" type="number" min="1" max="3" value="1">
+          </div>
+          <button class="btn btn-primary" type="submit">Open Demo Room</button>
+        </form>
+        <p class="card-hint">Creates a fresh Two Minds session with Luna and Marco ready for scripted or custom beats.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><span class="card-title">Active Sessions</span></div>
+      <div class="card-bd">
+        {% if demo_sessions %}
+        <ul class="session-rail" aria-label="Active demo sessions">
+          {% for item in demo_sessions %}
+          <li>
+            <a class="session-chip {{ 'active' if item.session_id == demo_session_id else '' }}" href="{{ url_for('demo', session_id=item.session_id) }}">
+              <div class="session-chip-id">{{ item.session_id }}</div>
+              <div class="session-chip-meta">Act {{ item.act_number }} · {{ item.turn_count }} turns</div>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">No active demo sessions.</p>
+        {% endif %}
+      </div>
+    </div>
+  </aside>
+
+  <section style="display:flex;flex-direction:column;gap:1rem;">
+    <section class="demo-hero card" aria-label="Demo overview">
+      <p class="demo-kicker">Flask control room</p>
+      <h1 class="demo-title">Two Minds Demo</h1>
+      <p class="demo-copy">Drive the new demo APIs from the Flask layer: list sessions, open a room, run scripted beats, inject custom scenarios, and swap personalities without leaving the server-rendered UI.</p>
+      <div class="demo-meta">
+        <article class="stat">
+          <div class="stat-label">Active Room</div>
+          <div class="stat-value">{{ demo_session.session_id if demo_session else "None" }}</div>
+        </article>
+        <article class="stat">
+          <div class="stat-label">Act</div>
+          <div class="stat-value">{{ demo_session.act_number if demo_session else "-" }}</div>
+        </article>
+        <article class="stat">
+          <div class="stat-label">Turn Count</div>
+          <div class="stat-value">{{ demo_session.turn_count if demo_session else 0 }}</div>
+        </article>
+      </div>
+    </section>
+
+    {% if demo_session %}
+    <section class="card">
+      <div class="card-hd"><span class="card-title">Scripted Beats</span></div>
+      <div class="card-bd">
+        <div class="scenario-grid">
+          {% for scenario in scripted_scenarios %}
+          <form method="post" action="{{ url_for('run_demo_scripted_ui', session_id=demo_session.session_id) }}">
+            <input type="hidden" name="scenario_key" value="{{ scenario.key }}">
+            <button class="btn btn-secondary scenario-btn" type="submit">{{ scenario.label }}</button>
+          </form>
+          {% endfor %}
+        </div>
+        <p class="card-hint">These buttons cover `POST /demo/sessions/{session_id}/scripted/{scenario_key}` from the Flask side.</p>
+      </div>
+    </section>
+
+    <section class="stack-two">
+      <div class="card">
+        <div class="card-hd"><span class="card-title">Custom Scenario</span></div>
+        <div class="card-bd">
+          <form method="post" action="{{ url_for('run_demo_custom_ui', session_id=demo_session.session_id) }}">
+            <div class="field">
+              <label for="demo_custom_text">Scenario Prompt</label>
+              <textarea id="demo_custom_text" name="text" rows="5" placeholder="What if Luna learns Marco accepted a new job in another city?"></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Send To Room</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><span class="card-title">Session Controls</span></div>
+        <div class="card-bd">
+          <form method="post" action="{{ url_for('swap_demo_ui', session_id=demo_session.session_id) }}">
+            <button class="btn btn-secondary" type="submit">Swap Personalities</button>
+          </form>
+          <p class="card-hint">Resets the room and flips the Luna/Marco trait vectors using `POST /demo/sessions/{session_id}/swap`.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="agent-deck" aria-label="Demo agents">
+      {% for agent in demo_session.agents %}
+      <article class="card agent-card">
+        <div class="card-bd">
+          <div class="agent-header">
+            <div>
+              <div class="agent-name">{{ agent.name }}</div>
+              <p class="agent-summary">{{ agent.summary }}</p>
+            </div>
+            <span class="tag tag-amber">{{ agent.key }}</span>
+          </div>
+          <p class="agent-emotion">{{ agent.emotion_label }}</p>
+          <div style="margin-top:12px;">
+            {{ agent_meter("Mood", agent.mood, -1, 1, "var(--red-bright)") }}
+            {{ agent_meter("Energy", agent.energy, 0, 1, "var(--green)") }}
+            {{ agent_meter("Calm", agent.calm, 0, 1, "var(--amber)") }}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+    {% else %}
+    <section class="card">
+      <div class="card-bd empty-room">
+        <p class="demo-kicker">No room selected</p>
+        <p style="margin-top:10px;">Create a session or pick one from the rail to inspect `GET /demo/sessions/{session_id}` and operate the rest of the demo endpoints.</p>
+      </div>
+    </section>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

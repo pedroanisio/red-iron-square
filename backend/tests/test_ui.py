@@ -17,6 +17,9 @@ from src.ui.app import create_ui_app
 from src.ui.helpers import _friendly_error
 from src.ui.models import (
     BranchResult,
+    DemoScriptedResult,
+    DemoSession,
+    DemoSwapResult,
     ReplayResult,
     RunListItem,
     RunSummary,
@@ -26,6 +29,11 @@ from src.ui.models import (
 
 class FakeUiClient:
     """Fake API client for UI tests."""
+
+    def __init__(self) -> None:
+        self.last_demo_custom_payload: dict[str, Any] | None = None
+        self.last_demo_scripted: tuple[str, str] | None = None
+        self.last_demo_swap_session_id: str | None = None
 
     def health(self) -> dict[str, str]:
         """Return a healthy status."""
@@ -53,6 +61,91 @@ class FakeUiClient:
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Return a stub create-run result."""
         return {"run_id": "run-123"}
+
+    def list_demo_sessions(self) -> list[DemoSession]:
+        """Return sample demo sessions."""
+        return [
+            DemoSession(
+                session_id="demo-123",
+                act_number=1,
+                turn_count=2,
+                agents=[
+                    {
+                        "key": "luna",
+                        "name": "Luna",
+                        "summary": "Warm, fast-reacting, and idealistic.",
+                        "mood": 0.4,
+                        "energy": 0.8,
+                        "calm": 0.3,
+                        "emotion_label": "Excited",
+                    },
+                    {
+                        "key": "marco",
+                        "name": "Marco",
+                        "summary": "Measured, guarded, and practical.",
+                        "mood": -0.1,
+                        "energy": 0.5,
+                        "calm": 0.7,
+                        "emotion_label": "Reserved",
+                    },
+                ],
+            )
+        ]
+
+    def create_demo_session(self, payload: dict[str, Any]) -> DemoSession:
+        """Return a stub create-demo result."""
+        return self.get_demo_session("demo-123")
+
+    def get_demo_session(self, session_id: str) -> DemoSession:
+        """Return one sample demo session."""
+        return DemoSession(
+            session_id=session_id,
+            act_number=1,
+            turn_count=2,
+            agents=[
+                {
+                    "key": "luna",
+                    "name": "Luna",
+                    "summary": "Warm, fast-reacting, and idealistic.",
+                    "mood": 0.4,
+                    "energy": 0.8,
+                    "calm": 0.3,
+                    "emotion_label": "Excited",
+                },
+                {
+                    "key": "marco",
+                    "name": "Marco",
+                    "summary": "Measured, guarded, and practical.",
+                    "mood": -0.1,
+                    "energy": 0.5,
+                    "calm": 0.7,
+                    "emotion_label": "Reserved",
+                },
+            ],
+        )
+
+    def run_demo_scripted(
+        self,
+        session_id: str,
+        scenario_key: str,
+    ) -> DemoScriptedResult:
+        """Return a stub scripted-demo result."""
+        self.last_demo_scripted = (session_id, scenario_key)
+        return DemoScriptedResult(
+            session_id=session_id,
+            scenario_key=scenario_key,
+            turn_count=3,
+        )
+
+    def run_demo_custom(self, session_id: str, payload: dict[str, Any]) -> DemoSession:
+        """Return a stub custom-demo result."""
+        self.last_demo_custom_payload = payload
+        return self.get_demo_session(session_id)
+
+    def swap_demo_personalities(self, session_id: str) -> DemoSwapResult:
+        """Return a stub swap-demo result."""
+        self.last_demo_swap_session_id = session_id
+        return DemoSwapResult(session_id=session_id, act_number=1, swapped=True)
 
     def get_run(self, run_id: str) -> RunSummary:
         """Return a sample run summary."""
@@ -504,6 +597,112 @@ def test_campaign_detail_renders() -> None:
 
     assert response.status_code == 200
     assert b"camp-1" in response.data
+
+
+def test_demo_page_renders() -> None:
+    """Demo page shows active room controls."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.get("/demo?session_id=demo-123")
+
+    assert response.status_code == 200
+    assert b"Two Minds Demo" in response.data
+    assert b"demo-123" in response.data
+    assert b"Luna" in response.data
+    assert b"Marco" in response.data
+    assert b"Swap Personalities" in response.data
+
+
+def test_demo_create_redirects_to_session() -> None:
+    """Create-demo route redirects to the active room."""
+    app = create_ui_app(api_client=FakeUiClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post("/demo/create", data={"act_number": "1"})
+
+    assert response.status_code == 302
+    assert "session_id=demo-123" in response.headers["Location"]
+
+
+def test_demo_scripted_post_redirects() -> None:
+    """Scripted-demo route redirects back to the room."""
+    fake_client = FakeUiClient()
+    app = create_ui_app(api_client=fake_client)
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post(
+        "/demo/demo-123/scripted",
+        data={"scenario_key": "promotion"},
+    )
+
+    assert response.status_code == 302
+    assert "session_id=demo-123" in response.headers["Location"]
+    assert fake_client.last_demo_scripted == ("demo-123", "promotion")
+
+
+def test_demo_custom_post_redirects() -> None:
+    """Custom-demo route forwards the prompt and redirects."""
+    fake_client = FakeUiClient()
+    app = create_ui_app(api_client=fake_client)
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post(
+        "/demo/demo-123/custom",
+        data={"text": "What if the dinner goes silent?"},
+    )
+
+    assert response.status_code == 302
+    assert "session_id=demo-123" in response.headers["Location"]
+    assert fake_client.last_demo_custom_payload == {
+        "text": "What if the dinner goes silent?"
+    }
+
+
+def test_demo_swap_post_redirects() -> None:
+    """Swap-demo route redirects back to the room."""
+    fake_client = FakeUiClient()
+    app = create_ui_app(api_client=fake_client)
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    response = client.post("/demo/demo-123/swap")
+
+    assert response.status_code == 302
+    assert "session_id=demo-123" in response.headers["Location"]
+    assert fake_client.last_demo_swap_session_id == "demo-123"
+
+
+def test_demo_page_ignores_stale_session_id() -> None:
+    """Demo page falls back to empty state for a stale stored session id."""
+
+    class MissingDemoClient(FakeUiClient):
+        """Fake client with no active demo sessions."""
+
+        def list_demo_sessions(self) -> list[DemoSession]:
+            """Return no demo sessions."""
+            return []
+
+        def get_demo_session(self, session_id: str) -> DemoSession:
+            """Mimic API 404 behavior from ApiClient."""
+            raise RuntimeError('{"detail":"Demo session not found."}')
+
+    app = create_ui_app(api_client=MissingDemoClient())
+    app.config["TESTING"] = True
+    client = app.test_client()
+
+    with client.session_transaction() as flask_session:
+        flask_session["demo_session_id"] = "demo-missing"
+
+    response = client.get("/demo")
+
+    assert response.status_code == 200
+    assert b"No room selected" in response.data
+    assert b"demo-missing" not in response.data
 
 
 def test_ui_models_are_importable() -> None:

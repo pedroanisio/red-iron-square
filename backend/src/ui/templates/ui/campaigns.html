@@ -10,7 +10,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     Campaigns
   </h2>
 
-  <div style="display:grid;grid-template-columns:280px 1fr;gap:2rem;">
+  <div class="stack-two">
     {# Sidebar: campaign list + create form #}
     <aside role="complementary">
       <div class="card">
@@ -39,7 +39,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
         <h3 style="font-family:'Archivo Black',sans-serif;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:.75rem;padding:.75rem;">
           New Campaign
         </h3>
-        <form method="post" action="/campaigns/create" style="padding:0 .75rem .75rem;">
+        <form method="post" action="/campaigns/create" id="campaign-create-form" style="padding:0 .75rem .75rem;">
           <label for="camp-name" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Name</label>
           <input type="text" id="camp-name" name="name" required
                  style="width:100%;padding:.4rem;margin-bottom:.75rem;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:.8rem;">

@@ -11,6 +11,7 @@ References:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -29,6 +30,12 @@ from src.temporal.emotions import EmotionLabel, EmotionReading
 
 if TYPE_CHECKING:
     from src.personality.vectors import PersonalityVector
+
+EmotionCallback = Callable[
+    [float, float, list[float], str],
+    list[EmotionReading],
+]
+"""Signature: (valence, arousal, prediction_errors, context) -> emotions."""
 
 _log = get_logger(module="constructed_emotion.affect")
 
@@ -57,9 +64,11 @@ class ConstructedAffectiveEngine:
     def __init__(
         self,
         params: ConstructedEmotionParams | None = None,
+        emotion_callback: EmotionCallback | None = None,
     ) -> None:
         self._params = params or ConstructedEmotionParams()
         self._spike_detector = SurpriseSpikeDetector(self._params)
+        self._emotion_callback = emotion_callback
         self._prev_free_energy: float | None = None
         self._mood: float = 0.0
 
@@ -89,7 +98,13 @@ class ConstructedAffectiveEngine:
 
         emotions: list[EmotionReading] = []
         if is_spike:
-            emotions = self._categorize_emotion(valence, arousal)
+            if self._emotion_callback is not None:
+                error_list = [float(e) for e in errors.level_0.tolist()]
+                emotions = self._emotion_callback(
+                    valence, arousal, error_list, "surprise_spike"
+                )
+            else:
+                emotions = self._categorize_emotion(valence, arousal)
             _log.info(
                 "surprise_spike",
                 arousal=round(arousal, 4),

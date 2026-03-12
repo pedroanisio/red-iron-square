@@ -317,6 +317,24 @@ test.describe("Keyboard Navigation", () => {
     // Either navigated or stayed — the point is no crash
     expect(true).toBeTruthy();
   });
+
+  test("Ctrl+Enter does not submit disabled run-dependent forms", async ({
+    page,
+  }) => {
+    const requests: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST") {
+        requests.push(request.url());
+      }
+    });
+    await page.goto("/");
+    await page.locator("#scenario_name").focus();
+    await page.keyboard.down("Control");
+    await page.keyboard.press("Enter");
+    await page.keyboard.up("Control");
+    await page.waitForTimeout(300);
+    expect(requests.some((url) => url.includes("/runs//tick"))).toBeFalsy();
+  });
 });
 
 // ─── Responsive Design ────────────────────────────────────────────

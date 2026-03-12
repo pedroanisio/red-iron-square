@@ -5,7 +5,7 @@ disclaimer: >
   or verifiable reference may be invalid, erroneous, or a hallucination.
 title: "The Two Minds Demo: A Family-Facing Showcase of Personality-Driven AI Agents"
 subtitle: "Complete demonstration guideline for Red Iron Square"
-version: "1.0"
+version: "1.1"
 date: "2026-03-11"
 codename: "FFF — Family-Facing Frontline"
 status: "Build-ready demonstration specification"
@@ -307,27 +307,29 @@ For each scenario, each agent goes through this sequence:
 
 When the LLM is available and the scenario has sufficient emotional charge, the LLM can override the heuristic label with a more context-specific term. This is a lightweight precursor to the full constructed emotion system described in the PHP architecture — the LLM receives the emotion vector and the narrative context and produces a single natural-language label (e.g., "ambivalence," "resolve," "guilt," "defiance"). The override is constrained: it must be consistent with the valence direction (positive state → positive label, negative → negative). If inconsistent, the heuristic label stands.
 
-**Step 4 — Audio tag injection (Eleven v3 only).** Before the narrative text is sent to ElevenLabs, the orchestrator injects inline audio tags based on the agent's current simulation state. These tags are natural-language cues wrapped in square brackets that the Eleven v3 model interprets to modulate vocal delivery — sighing, hesitating, laughing, whispering. The audience hears emotion *in* the voice, not just in the words.
+**Step 4 — Audio tag injection (Eleven v3 only, implemented in `backend/src/demo/audio.py` → `AudioTagInjector`).** Before the narrative text is sent to ElevenLabs, the orchestrator injects inline audio tags based on the agent's current simulation state. These tags are natural-language cues wrapped in square brackets that the Eleven v3 model interprets to modulate vocal delivery — sighing, hesitating, laughing, whispering. The audience hears emotion *in* the voice, not just in the words.
 
-The orchestrator applies the following mapping from agent state to audio tags:
+The `AudioTagInjector` applies the following priority-ordered rules (highest priority first):
 
-| Agent state condition | Audio tag injected | Injection point |
+| Priority | Agent state condition | Audio tag injected |
 |---|---|---|
-| mood < -0.5 and energy < 0.3 | `[sighs]` or `[softly]` | Before the first sentence |
-| frustration > 0.7 | `[frustrated]` or `[tense]` | Before the key emotional sentence |
-| mood > 0.5 and arousal > 0.6 | `[excited]` or `[laughs]` | Before or within enthusiastic phrase |
-| identity_drift > 0.3 | `[hesitantly]` or `[uncertain]` | Before self-referential statement |
-| mood dropping rapidly (Δmood < -0.3) | `[voice breaking]` or `[pauses]` | At the emotional turning point |
-| energy > 0.8 and mood > 0.3 | `[with confidence]` or `[warmly]` | Before a decisive statement |
-| coherence_gap > 0.2 | `[quietly]` or `[distantly]` | Before introspective passage |
+| 1 | mood dropping rapidly (Δmood < -0.3) | `[voice breaking]` |
+| 2 | mood < -0.5 and energy < 0.3 | `[sighs]` |
+| 3 | mood < -0.5 and energy < 0.3 | `[softly]` |
+| 4 | frustration > 0.7 | `[frustrated]` |
+| 5 | identity_drift > 0.3 | `[hesitantly]` |
+| 6 | mood > 0.5 and arousal > 0.6 | `[excited]` |
+| 7 | energy > 0.8 and mood > 0.3 | `[with confidence]` |
 
-Rules: inject at most two audio tags per response (over-tagging produces artifacts). Audio tags must be compatible with the voice — a measured, serious voice won't respond well to `[giggles]`. During development, test each tag with each voice and maintain a per-voice allowlist of tags that sound natural. If a tag produces audio artifacts, the orchestrator strips it and falls back to parameter-only modulation (Component 4).
+Rules: inject at most two audio tags per response (over-tagging produces artifacts). Tags are filtered against a per-voice `allowed_tags` frozenset stored in each `VoiceProfile` — a measured, serious voice won't respond well to `[giggles]`. During development, test each tag with each voice and maintain the allowlist accordingly. If a tag produces audio artifacts, remove it from the allowlist and the injector will fall back to parameter-only modulation (Component 4).
 
-The injected text is what goes to ElevenLabs. The *display* text shown on the frontend strips the audio tags — the audience sees clean prose while hearing the vocal modulation.
+The injected text is what goes to ElevenLabs. The *display* text shown on the frontend is cleaned with `AudioTagInjector.strip()` — the audience sees clean prose while hearing the vocal modulation.
 
 **Step 5 — Voice synthesis.** The tag-injected narrative text is sent to ElevenLabs for speech generation via HTTP streaming. Audio playback begins as soon as the first chunk arrives, while the rest synthesizes. The frontend displays the clean (tag-stripped) text in a typewriter effect simultaneously, so the audience reads and hears the response together.
 
 ### Component 4: ElevenLabs integration
+
+> **Implementation status:** The backend audio module (`backend/src/demo/audio.py`) implements `VoiceSettingsCalculator`, `AudioTagInjector`, and `ElevenLabsProvider`. Tests in `backend/tests/test_demo_audio.py` (23 tests). The `elevenlabs` SDK is not yet in `pyproject.toml` dependencies — add it before live use. The service layer (`backend/src/demo/service.py`) currently emits `audio_unavailable` events and needs wiring to the audio module. Frontend audio playback components are not yet built.
 
 #### Model selection: two models, two acts
 
@@ -362,18 +364,18 @@ ElevenLabs documents three qualitative regimes for v3:
 - *Natural* (0.40–0.60): Balanced — expressive but controlled.
 - *Robust* (0.60–0.85): Very stable, but less responsive to audio tags and emotional cues.
 
-**Demo mapping:** Compute from arousal and mood intensity:
+**Demo mapping (implemented in `backend/src/demo/audio.py` → `VoiceSettingsCalculator`):** Computed from arousal and mood intensity:
 
 ```
 base_stability_luna = 0.50    # "Natural" — grounded, measured
-base_stability_marco = 0.35   # "Creative" — energetic, expressive
+base_stability_marco = 0.32   # "Creative" — energetic, expressive
 
-emotional_intensity = arousal * 0.6 + abs(mood) * 0.4  # range [0, 1]
-stability = base_stability - (emotional_intensity * 0.15)
-stability = clamp(stability, 0.20, 0.75)
+emotional_intensity = min(1.0, arousal + abs(mood))
+stability = base_stability - (emotional_intensity * 0.25)
+stability = clamp(stability, 0.15, 0.85)
 ```
 
-When Luna is emotionally intense (high arousal + strong negative mood), her stability drops from ~0.50 toward ~0.35, producing more vocal variation — breathiness, breaks, uneven pacing. When she's calm, stability stays near 0.50 — measured and steady. Marco starts more expressive and gets even more variable under strong positive emotion.
+When Luna is emotionally intense (high arousal + strong negative mood), her stability drops from ~0.50 toward ~0.25, producing more vocal variation — breathiness, breaks, uneven pacing. When she's calm, stability stays near 0.50 — measured and steady. Marco starts more expressive and gets even more variable under strong positive emotion.
 
 **`similarity_boost`** (float, 0.0–1.0) — How closely the output matches the original voice identity. Higher values maintain consistent character voice; very high values may introduce distortion.
 
@@ -381,85 +383,76 @@ When Luna is emotionally intense (high arousal + strong negative mood), her stab
 
 **`style`** (float, 0.0–1.0) — Style exaggeration. Amplifies the voice's characteristic delivery patterns. Values above 0 increase latency.
 
-**Demo mapping:** Compute from mood intensity:
+**Demo mapping (implemented in `VoiceSettingsCalculator.compute`):** Computed from mood intensity:
 
 ```
-mood_intensity = abs(mood)  # range [0, 1]
-style = mood_intensity * 0.4  # range [0, 0.4]
-style = clamp(style, 0.0, 0.45)
+style = abs(mood) * 0.50  # range [0, 0.50]
+style = clamp(style, 0.0, 0.50)
 ```
 
-Near-neutral mood → style ≈ 0 (natural, restrained delivery). Strong positive or negative mood → style ≈ 0.35–0.40 (amplified characteristic delivery). Do not exceed 0.45 — higher values add diminishing expressiveness and significant latency.
+Near-neutral mood → style ≈ 0 (natural, restrained delivery). Strong positive or negative mood → style ≈ 0.40–0.50 (amplified characteristic delivery). Do not exceed 0.50 — higher values add diminishing expressiveness and significant latency.
 
 **`speed`** (float, 0.5–2.0) — Speaking rate multiplier. 1.0 is the voice's natural rate.
 
-**Demo mapping:** Compute from energy:
+**Demo mapping (implemented in `VoiceSettingsCalculator.compute`):** Computed from energy:
 
 ```
-speed_luna = 0.93 + (energy * 0.14)   # range [0.93, 1.07]
-speed_marco = 0.97 + (energy * 0.12)  # range [0.97, 1.09]
+base_speed_luna  = 0.97   # slightly deliberate
+base_speed_marco = 1.02   # slightly forward-leaning
+
+speed = base_speed + (energy - 0.5) * 0.16   # ±8% from center
+speed = clamp(speed, 0.5, 2.0)
 ```
 
-Luna's baseline is slightly slower than Marco's (she's more deliberate). When energy depletes, both slow down. When energy is high, both speed up. The range is deliberately narrow (±7–9% from center) — larger variations sound robotic. ElevenLabs' own voice design guide recommends 0.9–1.1x for natural conversation.
+Luna's baseline is slightly slower than Marco's (she's more deliberate). When energy depletes, both slow down. When energy is high, both speed up. The range is deliberately narrow (±8% from center) — larger variations sound robotic. ElevenLabs' own voice design guide recommends 0.9–1.1x for natural conversation.
 
 **`use_speaker_boost`** (boolean) — Boosts similarity to the original voice at the cost of additional latency.
 
 **Demo mapping:** Set `true` for Act 1 and Act 2 (quality matters, content is pre-tested). Set `false` for Act 3 (latency matters, every saved millisecond counts in live interaction).
 
-**Summary of per-call voice_settings construction:**
+**Summary of per-call voice_settings construction (implemented in `backend/src/demo/audio.py`):**
 
-```python
-def compute_voice_settings(agent_state, agent_profile, act_number):
-    mood = agent_state.mood          # [-1, 1]
-    energy = agent_state.energy      # [0, 1]
-    arousal = agent_state.arousal    # [0, 1]
-
-    emotional_intensity = arousal * 0.6 + abs(mood) * 0.4
-
-    base_stab = 0.50 if agent_profile.name == "Luna" else 0.35
-    stability = max(0.20, min(0.75, base_stab - emotional_intensity * 0.15))
-
-    style = max(0.0, min(0.45, abs(mood) * 0.4))
-
-    if agent_profile.name == "Luna":
-        speed = 0.93 + energy * 0.14
-    else:
-        speed = 0.97 + energy * 0.12
-
-    return {
-        "stability": round(stability, 2),
-        "similarity_boost": 0.75,
-        "style": round(style, 2),
-        "speed": round(speed, 2),
-        "use_speaker_boost": act_number in (1, 2),
-    }
-```
+The `VoiceSettingsCalculator.compute()` method accepts an agent state dict, a `VoiceProfile` (containing `voice_id`, `base_stability`, `base_speed`, and `allowed_tags`), and the act number. It returns a `VoiceSettings` dataclass with all five parameters. See the implementation for the exact formulas. The `ElevenLabsProvider.synthesize()` method converts `VoiceSettings` into the API's `voice_settings` dict automatically.
 
 #### API integration: HTTP streaming
 
 Use the **HTTP streaming endpoint** (`POST /v1/text-to-speech/{voice_id}/stream`), not the WebSocket endpoint. The orchestrator has the complete response text before sending to ElevenLabs (the LLM generates the full narrative in Step 2, audio tags are injected in Step 4), so streaming from complete text is the correct pattern. ElevenLabs documentation explicitly notes that the WebSocket endpoint "may have slightly higher latency compared to a standard HTTP request" when the full text is available upfront due to partial-generation buffering.
 
-**Python SDK call pattern:**
+**Python SDK call pattern (implemented in `backend/src/demo/audio.py` → `ElevenLabsProvider`):**
 
 ```python
-from elevenlabs import ElevenLabs
-
-client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
-
-audio_stream = client.text_to_speech.convert_as_stream(
-    voice_id=agent_voice_id,
-    text=tagged_narrative_text,     # text WITH audio tags for v3
-    model_id=model_id,              # "eleven_v3" or "eleven_flash_v2_5"
-    output_format="mp3_44100_128",
-    voice_settings=computed_settings,
-    previous_request_ids=previous_ids,  # for continuity
-    seed=None,                      # non-deterministic for live demo
+from src.demo.audio import (
+    ElevenLabsProvider, VoiceSettingsCalculator,
+    AudioTagInjector, VoiceProfile,
 )
 
-# Stream audio chunks to frontend via WebSocket
-for chunk in audio_stream:
+provider = ElevenLabsProvider(api_key=ELEVENLABS_API_KEY)
+calc = VoiceSettingsCalculator()
+injector = AudioTagInjector()
+
+# 1. Compute voice settings from agent state
+settings = calc.compute(agent_state, voice_profile, act_number=act)
+
+# 2. Inject audio tags (v3 only; skipped for Flash)
+tagged_text = injector.inject(narrative, agent_state, voice_profile)
+display_text = AudioTagInjector.strip(tagged_text)
+
+# 3. Synthesize — returns AudioResult with chunks + request_id
+result = provider.synthesize(
+    voice_id=voice_profile.voice_id,
+    text=tagged_text,
+    model_id=provider.model_for_act(act),
+    settings=settings,
+    output_format=provider.output_format_for_act(act),
+    previous_request_ids=stored_ids,
+)
+
+# 4. Stream audio chunks to frontend
+for chunk in result.chunks:
     websocket.send_bytes(chunk)
 ```
+
+The `ElevenLabsProvider` wraps all ElevenLabs SDK calls and returns an empty `AudioResult` on any error — the demo never crashes from a TTS failure.
 
 **Output format:** Use `mp3_44100_128` (default) for Act 1 and Act 2 — highest quality, universally playable in browsers. For Act 3, if latency is tight, switch to `mp3_22050_32` (smaller chunks, faster streaming, still good quality for spoken word). PCM formats are lower latency but require additional frontend audio handling.
 
@@ -467,19 +460,7 @@ for chunk in audio_stream:
 
 The API supports `previous_request_ids` — a list of up to 3 request IDs from prior generations. This tells ElevenLabs that the current generation is a continuation of the same speaker, maintaining consistent prosody and pacing across scenarios.
 
-**Implementation:** After each TTS call, extract the `request_id` from the response headers. Store it per agent. On the next TTS call for the same agent, pass the stored ID:
-
-```python
-# Per-agent state in the orchestrator
-luna_previous_ids: list[str] = []
-marco_previous_ids: list[str] = []
-
-# After each generation, store the request_id
-response_headers = ...  # from the HTTP response
-request_id = response_headers.get("request-id")
-luna_previous_ids.append(request_id)
-luna_previous_ids = luna_previous_ids[-3:]  # keep last 3
-```
+**Implementation:** The `ElevenLabsProvider.synthesize()` method accepts an optional `previous_request_ids` list and forwards it to the ElevenLabs API. The caller stores the returned `AudioResult.request_id` per agent and passes up to 3 previous IDs on the next call:
 
 This is especially valuable for the scripted Act 1: Luna's voice in Scenario 3 carries the tonal weight of Scenarios 1 and 2 because ElevenLabs knows it's the same speaker continuing. For the personality swap in Act 2, clear the request_ids (it's a fresh start with a new personality).
 

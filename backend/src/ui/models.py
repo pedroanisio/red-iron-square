@@ -144,3 +144,40 @@ class BranchResult(TypedDict):
     """Result of branch_run."""
 
     run: RunListItem
+
+
+class DemoAgentState(TypedDict):
+    """Frontend-safe snapshot of one demo agent."""
+
+    key: str
+    name: str
+    summary: str
+    mood: float
+    energy: float
+    calm: float
+    emotion_label: str
+
+
+class DemoSession(TypedDict):
+    """One Two Minds demo session."""
+
+    session_id: str
+    act_number: int
+    turn_count: int
+    agents: list[DemoAgentState]
+
+
+class DemoScriptedResult(TypedDict):
+    """Result of running one scripted scenario."""
+
+    session_id: str
+    scenario_key: str
+    turn_count: int
+
+
+class DemoSwapResult(TypedDict):
+    """Result of swapping demo personalities."""
+
+    session_id: str
+    act_number: int
+    swapped: bool

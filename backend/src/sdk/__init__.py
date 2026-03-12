@@ -6,10 +6,11 @@ from collections.abc import Mapping, Sequence
 
 import numpy as np
 
-from src.constructed_emotion.affect import ConstructedAffectiveEngine
+from src.constructed_emotion.affect import ConstructedAffectiveEngine, EmotionCallback
 from src.constructed_emotion.params import ConstructedEmotionParams
 from src.efe.engine import EFEEngine
 from src.efe.params import EFEParams
+from src.narrative.model import NarrativeGenerativeModel
 from src.personality.decision import DecisionEngine
 from src.personality.dimensions import DEFAULT_DIMENSIONS, Dimension, DimensionRegistry
 from src.personality.hyperparameters import HyperParameters, ResilienceMode
@@ -62,6 +63,7 @@ class AgentSDK:
         self._efe_params = efe_params
         self._emotion_params = emotion_params
         self._self_evidencing_params = self_evidencing_params
+        self._emotion_callback: EmotionCallback | None = None
 
     @classmethod
     def default(cls) -> AgentSDK:
@@ -114,6 +116,10 @@ class AgentSDK:
             emotion_params=emotion_params or ConstructedEmotionParams(),
             self_evidencing_params=self_evidencing_params or SelfEvidencingParams(),
         )
+
+    def set_emotion_callback(self, callback: EmotionCallback) -> None:
+        """Register an LLM emotion callback for System 2 surprise spikes."""
+        self._emotion_callback = callback
 
     @classmethod
     def from_dimensions(cls, dimensions: Sequence[Dimension]) -> AgentSDK:
@@ -169,7 +175,8 @@ class AgentSDK:
         rng: np.random.Generator | None = None,
     ) -> DecisionResult:
         """Run a one-shot decision through the SDK."""
-        return DecisionClient(self.engine, self.registry).decide(
+        engine = self._resolve_engine(personality)
+        return DecisionClient(engine, self.registry).decide(
             personality,
             scenario,
             actions,
@@ -199,7 +206,11 @@ class AgentSDK:
         if self._emotion_params and "constructed_affect" not in simulator_kwargs:
             simulator_kwargs["constructed_affect"] = ConstructedAffectiveEngine(
                 self._emotion_params,
+                emotion_callback=self._emotion_callback,
             )
+        if self._emotion_params and "narrative_model" not in simulator_kwargs:
+            pvals = dict(zip(personality.registry.keys, personality.to_array()))
+            simulator_kwargs["narrative_model"] = NarrativeGenerativeModel(pvals)
         engine = self._resolve_engine(personality)
         return TemporalSimulationClient(
             personality,
@@ -222,7 +233,11 @@ class AgentSDK:
         if self._emotion_params and "constructed_affect" not in simulator_kwargs:
             simulator_kwargs["constructed_affect"] = ConstructedAffectiveEngine(
                 self._emotion_params,
+                emotion_callback=self._emotion_callback,
             )
+        if self._emotion_params and "narrative_model" not in simulator_kwargs:
+            pvals = dict(zip(personality.registry.keys, personality.to_array()))
+            simulator_kwargs["narrative_model"] = NarrativeGenerativeModel(pvals)
         if self._self_evidencing_params and "self_evidencing" not in simulator_kwargs:
             simulator_kwargs["self_evidencing"] = SelfEvidencingModulator(
                 self._self_evidencing_params,
@@ -246,6 +261,8 @@ __all__ = [
     "DecisionResult",
     "EFEEngine",
     "EFEParams",
+    "EmotionCallback",
+    "NarrativeGenerativeModel",
     "PrecisionEngine",
     "PrecisionParams",
     "SelfAwareSimulationTrace",

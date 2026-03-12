@@ -27,6 +27,7 @@ else:
     _FLASK_IMPORT_ERROR = None
 
 from src.ui.api_client import ApiClient
+from src.ui.demo_page import register_demo_routes
 from src.ui.helpers import (
     _KNOWN_ERRORS,
     DEFAULT_RUN_CONFIG,
@@ -47,6 +48,7 @@ def create_ui_app(api_client: ApiClient | None = None) -> Flask:
     client = api_client or ApiClient(
         os.getenv("RED_IRON_SQUARE_API_URL", "http://127.0.0.1:8000")
     )
+    register_demo_routes(app, client)
 
     @app.get("/")
     def index() -> str:

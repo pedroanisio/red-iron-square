@@ -7,6 +7,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 TraitVector = dict[str, float]
@@ -58,19 +59,35 @@ class DemoSessionState:
     agents: dict[str, DemoAgentSnapshot]
     scripted_index: int = 0
 
-    def reset_for_swap(self, personas: dict[str, DemoPersona]) -> None:
+    def reset_for_swap(
+        self,
+        new_agents: Mapping[str, DemoPersona | DemoAgentSnapshot],
+    ) -> None:
         """Reset session state when the audience swaps personalities."""
         self.turn_count = 0
         self.scripted_index = 0
         self.agents = {
-            key: DemoAgentSnapshot(
-                key=persona.key,
-                name=persona.name,
-                summary=persona.summary,
-                traits=persona.traits,
-            )
-            for key, persona in personas.items()
+            key: _coerce_agent_snapshot(agent) for key, agent in new_agents.items()
         }
+
+
+def _coerce_agent_snapshot(
+    agent: DemoPersona | DemoAgentSnapshot,
+) -> DemoAgentSnapshot:
+    """Normalize persona data into a reset frontend-facing snapshot."""
+    if isinstance(agent, DemoAgentSnapshot):
+        return DemoAgentSnapshot(
+            key=agent.key,
+            name=agent.name,
+            summary=agent.summary,
+            traits=agent.traits,
+        )
+    return DemoAgentSnapshot(
+        key=agent.key,
+        name=agent.name,
+        summary=agent.summary,
+        traits=agent.traits,
+    )
 
 
 @dataclass(frozen=True, slots=True)

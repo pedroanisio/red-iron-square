@@ -94,3 +94,27 @@ class TestAgentSDK:
         assert len(trace.ticks) == 1
         assert set(trace.ticks[0].psi_hat.keys()) == set(self.sdk.registry.keys)
         assert 0.0 <= trace.ticks[0].prediction_error <= 1.0
+
+
+class TestSDKDecideEFE:
+    """AgentSDK.decide() should use EFE engine when EFE mode active."""
+
+    def test_decide_uses_efe_engine(self) -> None:
+        sdk = AgentSDK.with_efe()
+        personality = sdk.personality({k: 0.5 for k in "OCEANRIT"})
+        scenario = sdk.scenario({k: 0.5 for k in "OCEANRIT"}, name="test")
+        actions = [
+            sdk.action("Act", {"O": 0.3, "E": 0.2}),
+            sdk.action("Wait", {"O": -0.1}),
+        ]
+        result = sdk.decide(personality, scenario, actions)
+        assert result.chosen_action in {"Act", "Wait"}
+        assert len(result.probabilities) == 2
+
+    def test_decide_default_uses_base_engine(self) -> None:
+        sdk = AgentSDK.default()
+        personality = sdk.personality({k: 0.5 for k in "OCEANRIT"})
+        scenario = sdk.scenario({k: 0.5 for k in "OCEANRIT"}, name="test")
+        actions = [sdk.action("Act", {"O": 0.3})]
+        result = sdk.decide(personality, scenario, actions)
+        assert result.chosen_action == "Act"

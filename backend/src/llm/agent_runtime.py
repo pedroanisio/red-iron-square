@@ -14,8 +14,10 @@ from pydantic import BaseModel
 
 from src.llm.schemas import (
     AnalysisReport,
+    EmotionConstructor,
     InterventionRecommendation,
     LLMInvocationResult,
+    MatrixProposal,
     NarrativeChunk,
     ScenarioProposal,
 )
@@ -147,4 +149,80 @@ class AgentRuntime:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             response_model=InterventionRecommendation,
+        )
+
+    def construct_emotion(
+        self,
+        *,
+        valence: float,
+        arousal: float,
+        prediction_errors: list[float],
+        context: str,
+    ) -> tuple[EmotionConstructor, LLMInvocationResult]:
+        """Construct an emotion label from prediction error pattern (§4 Step 3b).
+
+        Constrains the LLM to produce labels consistent with System 1
+        valence/arousal signals.
+        """
+        valence_sign = (
+            "positive" if valence > 0 else ("negative" if valence < 0 else "neutral")
+        )
+        arousal_level = "high" if arousal > 0.5 else "low"
+        system_prompt = (
+            "You categorize emotional states from interoceptive prediction errors. "
+            "Return JSON only. Return exactly one object with keys "
+            "`label`, `description`, `valence_sign`, `arousal_level`, `confidence`. "
+            f"CONSTRAINT: valence_sign MUST be '{valence_sign}'. "
+            f"CONSTRAINT: arousal_level MUST be '{arousal_level}'. "
+            "Do not wrap the object in arrays or extra keys."
+        )
+        user_prompt = json.dumps(
+            {
+                "valence": round(valence, 4),
+                "arousal": round(arousal, 4),
+                "prediction_errors": [round(e, 4) for e in prediction_errors],
+                "context": context,
+                "output_schema": "EmotionConstructor",
+            }
+        )
+        return self._adapter.complete_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            response_model=EmotionConstructor,
+        )
+
+    def propose_matrices(
+        self,
+        *,
+        personality: dict[str, float],
+        trajectory_window: list[dict[str, Any]],
+        n_states: int,
+        n_actions: int,
+    ) -> tuple[MatrixProposal, LLMInvocationResult]:
+        """Propose A/B matrices for narrative generative model (§10).
+
+        The LLM proposes observation likelihood and transition matrices
+        grounded in the agent's personality and recent trajectory.
+        """
+        system_prompt = (
+            "You propose generative model matrices for active inference. "
+            "Return JSON only. Return exactly one object with keys "
+            "`a_matrix`, `b_matrix`, `rationale`, `n_states`, `n_actions`. "
+            "Matrices must be 3D arrays with shape (n_states, n_states, n_actions). "
+            "Each row must sum to 1.0 (valid probability distributions). "
+            "Do not wrap the object in arrays or extra keys."
+        )
+        user_prompt = json.dumps(
+            {
+                "personality": personality,
+                "trajectory_window": trajectory_window,
+                "n_states": n_states,
+                "n_actions": n_actions,
+                "output_schema": "MatrixProposal",
+            }
+        )
+        return self._adapter.complete_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            response_model=MatrixProposal,
         )

@@ -54,28 +54,48 @@ def build_demo_personas(swapped: bool = False) -> dict[str, DemoPersona]:
 
 def build_run_config(persona: DemoPersona) -> dict[str, Any]:
     """Build a self-aware run config for one demo persona."""
+    seed = hash(persona.key) % (2**31)
     return {
         "personality": persona.traits,
         "actions": DEFAULT_ACTIONS,
         "temperature": 0.8,
         "self_model": persona.traits,
-        "seed": 42,
+        "seed": seed,
     }
+
+
+def derive_initial_affect(traits: dict[str, float]) -> dict[str, float]:
+    """Compute personality-grounded initial mood, energy, and calm.
+
+    Extraversion (E) lifts baseline energy, Neuroticism (N) lowers
+    initial mood, and Resilience (R) raises initial calm.
+    """
+    extraversion = traits.get("E", 0.5)
+    neuroticism = traits.get("N", 0.5)
+    resilience = traits.get("R", 0.5)
+    mood = round(0.2 * (resilience - neuroticism), 2)
+    energy = round(0.4 + 0.2 * extraversion, 2)
+    calm = round(0.4 + 0.2 * resilience, 2)
+    return {"mood": mood, "energy": energy, "calm": calm}
 
 
 def build_initial_agents(
     personas: dict[str, DemoPersona],
 ) -> dict[str, DemoAgentSnapshot]:
-    """Construct neutral agent snapshots for a new session."""
-    return {
-        key: DemoAgentSnapshot(
+    """Construct personality-grounded agent snapshots for a new session."""
+    agents: dict[str, DemoAgentSnapshot] = {}
+    for key, persona in personas.items():
+        affect = derive_initial_affect(persona.traits)
+        agents[key] = DemoAgentSnapshot(
             key=persona.key,
             name=persona.name,
             summary=persona.summary,
             traits=persona.traits,
+            mood=affect["mood"],
+            energy=affect["energy"],
+            calm=affect["calm"],
         )
-        for key, persona in personas.items()
-    }
+    return agents
 
 
 def session_to_response(session: DemoSessionState) -> DemoSessionResponse:
@@ -117,6 +137,30 @@ def update_snapshot_from_tick(
     snapshot.emotion_label = display_label
     snapshot.transcript.append(transcript)
     return snapshot
+
+
+def modulate_outcome(
+    base_outcome: float,
+    persona: DemoPersona,
+    scenario_values: dict[str, float],
+) -> float:
+    """Shift a scripted outcome based on persona-scenario alignment.
+
+    Computes how well the persona's traits align with what the scenario
+    demands, then nudges the base outcome accordingly.  High-N personas
+    experience negative events more intensely; high-R personas dampen them.
+    """
+    shared_keys = set(persona.traits) & set(scenario_values)
+    if not shared_keys:
+        return base_outcome
+    alignment = sum(persona.traits[k] * scenario_values[k] for k in shared_keys) / len(
+        shared_keys
+    )
+    neuroticism = persona.traits.get("N", 0.5)
+    resilience = persona.traits.get("R", 0.5)
+    shift = 0.3 * (alignment - 0.5) + 0.15 * (resilience - neuroticism)
+    modulated = base_outcome + shift
+    return float(max(-1.0, min(1.0, modulated)))
 
 
 def build_custom_scenario(text: str) -> DemoScenario:

@@ -7,6 +7,7 @@ Criteria from section 7.2 of the research doc:
 
 import numpy as np
 from src.sdk import AgentSDK
+from src.shared.entropy import compute_action_entropy
 
 N_SEEDS = 10
 N_TICKS = 200
@@ -46,16 +47,6 @@ def _run_action_distribution(
         rec = sim.tick(scenario)
         counts[rec.action] += 1
     return counts
-
-
-def _action_entropy(counts: dict[str, int]) -> float:
-    """Shannon entropy of the action distribution in nats."""
-    total = sum(counts.values())
-    if total == 0:
-        return 0.0
-    probs = np.array([c / total for c in counts.values()])
-    probs = probs[probs > 0]
-    return float(-np.sum(probs * np.log(probs)))
 
 
 def _kl_divergence(p: np.ndarray, q: np.ndarray) -> float:
@@ -129,8 +120,8 @@ class TestEFEDifferentiation:
             for seed in range(N_SEEDS)
         ]
 
-        entropies_o = [_action_entropy(c) for c in high_o_counts]
-        entropies_c = [_action_entropy(c) for c in high_c_counts]
+        entropies_o = [compute_action_entropy(c) for c in high_o_counts]
+        entropies_c = [compute_action_entropy(c) for c in high_c_counts]
 
         mean_o = float(np.mean(entropies_o))
         mean_c = float(np.mean(entropies_c))

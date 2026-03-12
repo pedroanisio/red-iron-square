@@ -7,7 +7,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from src.api.run_client_builder import RunClientBuilder
 from src.api.run_models import (
@@ -20,6 +20,8 @@ from src.api.run_store import RunStore
 from src.llm.schemas import LLMInvocationResult
 from src.sdk import AgentSDK
 
+SimClient = Any  # TemporalSimulationClient | SelfModelSimulationClient
+
 
 class RunService:
     """Coordinate persisted runs with simulator reconstruction."""
@@ -31,6 +33,7 @@ class RunService:
     ) -> None:
         self._store = store
         self._builder = client_builder or RunClientBuilder()
+        self._client_cache: dict[str, SimClient] = {}
 
     def list_runs(self) -> list[dict[str, Any]]:
         """Return all runs with tick counts, most recent first."""
@@ -58,6 +61,18 @@ class RunService:
             "intervention_count": len(self._store.list_intervention_decisions(run_id)),
         }
 
+    def _get_or_build_client(self, run_id: str) -> SimClient:
+        """Return a cached simulator client, rebuilding only on cache miss."""
+        if run_id not in self._client_cache:
+            run = self._require_run(run_id)
+            ticks = self._store.list_ticks(run_id)
+            self._client_cache[run_id] = self._builder.build(run["config"], ticks)
+        return self._client_cache[run_id]
+
+    def _evict_client(self, run_id: str) -> None:
+        """Remove a cached client so the next access rebuilds it."""
+        self._client_cache.pop(run_id, None)
+
     def step_run(
         self,
         run_id: str,
@@ -65,15 +80,17 @@ class RunService:
         requested_outcome: float | None,
     ) -> dict[str, Any]:
         """Execute and persist one tick."""
-        run = self._require_run(run_id)
-        client = self._builder.build(run["config"], self._store.list_ticks(run_id))
+        client = self._get_or_build_client(run_id)
         sdk = AgentSDK.default()
         scenario = sdk.scenario(
             scenario_payload["values"],
             name=scenario_payload.get("name", ""),
             description=scenario_payload.get("description", ""),
         )
-        result = client.tick(scenario, outcome=requested_outcome).model_dump()
+        result = cast(
+            dict[str, Any],
+            client.tick(scenario, outcome=requested_outcome).model_dump(),
+        )
         self._store.append_tick(
             run_id,
             TickEventRecord(
@@ -105,6 +122,7 @@ class RunService:
             **{k: v for k, v in patch.items() if v is not None},
         }
         self._store.update_run_config(run_id, updated_config)
+        self._evict_client(run_id)
         return self.get_run(run_id)
 
     def create_phase(self, run_id: str, phase: PhaseRecord) -> dict[str, Any]:

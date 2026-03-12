@@ -8,6 +8,10 @@ disclaimer: "No information in this document should be taken for granted. Any st
 
 ### Added
 
+- ElevenLabs audio integration module (`src.demo.audio`) with voice-settings
+  calculator, audio-tag injector/stripper, and provider adapter with env-based
+  API key loading and graceful degradation.
+- `.env.example` documenting all supported environment variables.
 - Campaign orchestration backend in
   [backend/src/api/campaign_router.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_router.py),
   [backend/src/api/campaign_service.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_service.py),
@@ -26,7 +30,7 @@ disclaimer: "No information in this document should be taken for granted. Any st
 ### Changed
 
 - The FastAPI app factory now wires both run and campaign routers.
-- Backend verification baseline has increased to `144 passed` under `uv run pytest -q`.
+- Backend verification baseline is now `457 passed` under `uv run pytest -q`.
 
 ## 0.1.0
 

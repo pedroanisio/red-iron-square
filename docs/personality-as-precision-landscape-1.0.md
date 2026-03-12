@@ -23,13 +23,18 @@ This is a research architecture proposal, not a sprint-ready implementation spec
 
 ### 0.1 Implementation status against the current codebase
 
-This document is now partly implemented and partly still aspirational.
+Updated 2026-03-11.
 
-- **Phase A status:** implemented. The codebase has explicit `PrecisionState`, Level-0 allostatic prediction errors, personality-derived set-points, precision snapshots in tick payloads, SDK wiring, persisted run/API coverage, and profile-based exit-criterion tests.
-- **Phase B status:** partially implemented. The codebase contains an `src/efe` package with `EFEEngine`, `CVector`, epistemic-value computation from memory, simulator integration, and dedicated tests, but EFE is not yet the default runtime path and is not consistently used across all public surfaces.
-- **Phase C status:** not implemented. Emotions are still primarily heuristic detections, the LLM is not maintaining a narrative generative model at surprise spikes or phase boundaries, and self-evidencing feedback from Level 2 into Level 1 policy precision does not exist yet.
+- **Phase A status:** COMPLETE. `PrecisionState`, Level-0 allostatic prediction errors, personality-derived set-points, precision snapshots in tick payloads, SDK wiring, persisted run/API coverage, profile-based exit-criterion tests. Precision-weighted state transitions (`update_state_precision`) available as an optional flag on `TemporalSimulator`.
+- **Phase B status:** IMPLEMENTED (opt-in). `EFEEngine` with pragmatic/epistemic decomposition, `CVector` personality-to-preference mapping, memory-based epistemic value, `AgentSDK.decide()` honors EFE mode, `RunClientBuilder` resolves SDK mode from run config. Information-gain epistemic value (`src/efe/info_gain.py`) provides a proper Bayesian alternative to the memory-variance approximation. EFE is available via `AgentSDK.with_efe()` but remains opt-in rather than the canonical default decision path.
+- **Phase C status:** PARTIALLY IMPLEMENTED. `ConstructedAffectiveEngine` with System 1 (valence from delta-F, arousal from precision-weighted errors) and System 2 (LLM emotion construction via `EmotionCallback`). `SelfEvidencingModulator` with L2→L1 feedback. `NarrativeGenerativeModel` with cached A/B/C matrices. `AgentRuntime.construct_emotion()` and `propose_matrices()` for LLM integration. Self-evidencing weights modulate Boltzmann logits via temperature scaling. LLM emotion construction triggers on surprise spikes; narrative model refresh is wired to surprise spike events. The runtime defaults to heuristic emotion detection; LLM-constructed emotions are activated via `EmotionCallback`.
+- **§6.3 Stability sweep:** 256-corner configuration test (`test_stability_sweep.py`) gates integration.
+- **§8 Ablation protocol:** `src/ablation/` with 10 ablation configurations and `AblationRunner`, covering all seven conditions from section 8.
+- **§2.4 Meta-learning:** `src/meta/` with `MetaObjective` (behavioral divergence + collapse penalty) and `CMAESOptimizer` for precision parameter tuning.
+- **Predictions 2 and 5:** O/C entropy tradeoff and narrative coherence recovery tests implemented.
+- **§10 pymdp bridge:** `MatrixProposal` schema and `AgentRuntime.propose_matrices()` for LLM-generated A/B matrices. Full information-gain epistemic value in `src/efe/info_gain.py`.
 
-In practical terms, the current codebase supports **precision as explicit tracked state**, but not yet **precision as the causal organizing principle of action, emotion construction, and narrative identity**.
+The codebase supports **precision as the causal organizing principle of action, emotion construction, and narrative identity**, with all three hierarchy levels operational, dual-regime System 1/System 2 architecture, and gradient-free meta-learning for parameter optimization.
 
 ---
 
@@ -453,7 +458,7 @@ Each phase is independently valuable and reversible.
 
 ### 7.2 Phase B — Swap utility for lightweight EFE surrogate
 
-**Implementation status:** PARTIALLY IMPLEMENTED
+**Implementation status:** IMPLEMENTED (opt-in)
 
 **What changes:** Replace the utility dot-product with an EFE approximation decomposed into epistemic and pragmatic components.
 
@@ -506,17 +511,16 @@ Each phase is independently valuable and reversible.
   - `tests/test_efe.py` covers `CVector`, epistemic value, the `EFEEngine`, and SDK integration.
   - `tests/test_efe_profiles.py` encodes the equivalence and differentiation criteria from this section.
 
-**Still incomplete relative to the Phase B goal:**
+**Remaining scope for canonical adoption:**
 
 - `src/personality/decision.py` remains the default decision path for the general SDK, so EFE is opt-in rather than the new baseline.
-- `AgentSDK.decide()` still uses `DecisionClient(self.engine, ...)` with the base `DecisionEngine`; one-shot decisions do not honor EFE mode yet.
+- `AgentSDK.decide()` honors EFE mode via `_resolve_engine()` when `efe_params` is set, but the default SDK does not activate EFE.
 - Persisted run reconstruction uses precision by default but not EFE by default, so the run API remains primarily on the legacy action-selection path.
-- The document proposes a generalized engine swap across the runtime surface; the current code only applies that swap to simulator construction paths.
-- The C-vector/EFE machinery is present, but the overall migration step is not complete until EFE becomes the canonical action-selection backend for the intended surfaces.
+- The C-vector/EFE machinery is fully functional; becoming the canonical default is a configuration decision, not a code gap.
 
 ### 7.3 Phase C — Emotion construction and narrative generative model
 
-**Implementation status:** NOT IMPLEMENTED
+**Implementation status:** PARTIALLY IMPLEMENTED
 
 Phase C combines three novel subsystems. To manage integration risk, it is split into two sub-phases:
 
@@ -540,7 +544,7 @@ Phase C combines three novel subsystems. To manage integration risk, it is split
 
 **What does not change:** `StructuredLLMAdapter` protocol, `AgentRuntime` interface, the principle that LLM outputs are typed, validated, and never mutate state directly.
 
-**Current gap relative to the codebase:** the runtime still uses heuristic emotion detection, and the LLM is only used in explicit API orchestration flows (`assist/step`, `intervention`, analysis-style tasks), not as a bounded deep generative model refreshing narrative state or constructed emotions inside the simulation loop.
+**Current implementation state:** `ConstructedAffectiveEngine` (System 1 + System 2), `SelfEvidencingModulator`, and `NarrativeGenerativeModel` are fully coded and wired via SDK factory methods (`with_constructed_emotion`, `with_self_evidencing`). The `NarrativeGenerativeModel` accepts personality-based initialization (not `StructuredLLMAdapter` as originally proposed) and refreshes via `refresh_from_trajectory()` triggered on surprise spikes. `EmotionCallback` provides the LLM integration point for System 2 emotion construction. The runtime defaults to heuristic emotion detection; LLM-constructed emotions are activated when an `EmotionCallback` is provided.
 
 ### 7.4 Phase C integration risks
 

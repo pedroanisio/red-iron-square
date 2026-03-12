@@ -3,44 +3,27 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
 
 from src.personality.vectors import Action, PersonalityVector, Scenario
 from src.precision.state import PrecisionState, PredictionErrors
 from src.shared.logging import get_logger
 from src.shared.protocols import DecisionEngineProtocol
 from src.temporal.affective_engine import AffectiveEngine
-from src.temporal.emotions import EmotionReading, EmotionThresholds
+from src.temporal.emotions import EmotionThresholds
 from src.temporal.memory import MemoryBank, MemoryEntry
+from src.temporal.precision_state import PrecisionStateParams, update_state_precision
 from src.temporal.state import AgentState, StateTransitionParams, update_state
+from src.temporal.tick_result import TickResult
 
 if TYPE_CHECKING:
     from src.constructed_emotion.affect import AffectSignal, ConstructedAffectiveEngine
+    from src.narrative.model import NarrativeGenerativeModel
     from src.precision.engine import PrecisionEngine
 
 _log = get_logger(module="temporal.simulator")
-
-
-class TickResult(BaseModel):
-    """Complete result for a single simulation tick."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    tick: int
-    scenario: Scenario
-    action: Action
-    outcome: float
-    state_before: AgentState
-    state_after: AgentState
-    activations: np.ndarray
-    emotions: list[EmotionReading]
-    probabilities: np.ndarray
-    precision: PrecisionState | None = None
-    prediction_errors: PredictionErrors | None = None
-    affect_signal: Any = None
 
 
 class TemporalSimulator:
@@ -75,6 +58,9 @@ class TemporalSimulator:
         rng: np.random.Generator | None = None,
         precision_engine: PrecisionEngine | None = None,
         constructed_affect: ConstructedAffectiveEngine | None = None,
+        use_precision_state: bool = False,
+        precision_state_params: PrecisionStateParams | None = None,
+        narrative_model: NarrativeGenerativeModel | None = None,
     ) -> None:
         self.personality = personality
         self.actions = list(actions)
@@ -89,6 +75,9 @@ class TemporalSimulator:
         self._tick_counter = 0
         self._precision_engine = precision_engine
         self._constructed_affect = constructed_affect
+        self._use_precision_state = use_precision_state
+        self._precision_state_params = precision_state_params or PrecisionStateParams()
+        self._narrative_model = narrative_model
         self._bind_engine_memory()
 
     def _bind_engine_memory(self) -> None:
@@ -166,16 +155,48 @@ class TemporalSimulator:
         """Return False if agent withdrew, energy depleted, or frustration maxed."""
         if chosen_action.name == self.WITHDRAW_ACTION_NAME:
             return False
-        if new_state.energy <= 1e-9:
-            return False
-        if new_state.frustration >= 1.0 - 1e-9:
-            return False
-        return True
+        return new_state.energy > 1e-9 and new_state.frustration < 1.0 - 1e-9
 
     @staticmethod
     def _compute_action_effort(action: Action) -> float:
         """Compute action effort as L2 norm of the modifier vector."""
         return float(np.linalg.norm(action.modifiers))
+
+    def _transition_state(
+        self,
+        outcome: float,
+        scenario: Scenario,
+        action_effort: float,
+    ) -> AgentState:
+        """Choose between precision-weighted and handcrafted state transition."""
+        if self._use_precision_state and self._precision_engine is not None:
+            precision = self._precision_engine.compute(
+                self.personality,
+                self.state,
+                scenario,
+            )
+            errors = self._precision_engine.compute_errors(
+                self.state,
+                self.personality,
+            )
+            return update_state_precision(
+                self.state,
+                outcome,
+                self.personality,
+                scenario,
+                precision,
+                errors,
+                self._precision_state_params,
+                action_effort=action_effort,
+            )
+        return update_state(
+            self.state,
+            outcome,
+            self.personality,
+            scenario,
+            self.state_params,
+            action_effort=action_effort,
+        )
 
     def _store_memory(
         self,
@@ -263,13 +284,10 @@ class TemporalSimulator:
         )
 
         action_effort = self._compute_action_effort(chosen_action)
-        new_state = update_state(
-            self.state,
+        new_state = self._transition_state(
             resolved_outcome,
-            self.personality,
             scenario,
-            self.state_params,
-            action_effort=action_effort,
+            action_effort,
         )
         is_acting = self._determine_is_still_acting(chosen_action, new_state)
 
@@ -293,6 +311,19 @@ class TemporalSimulator:
 
         precision, pred_errors = self._compute_precision(new_state, scenario)
         affect_sig = self._run_constructed_affect(precision, pred_errors)
+        if self._narrative_model and affect_sig:
+            window = [
+                {
+                    "state": list(self.state.to_array()),
+                    "outcome": e.outcome,
+                    "action": e.action_name,
+                }
+                for e in self.memory.recent(50)
+            ]
+            self._narrative_model.refresh_on_spike(
+                affect_sig.is_surprise_spike,
+                window,
+            )
 
         self.state = new_state
         self._tick_counter += 1

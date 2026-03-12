@@ -21,11 +21,12 @@ from src.demo.state_mapper import (
     build_demo_personas,
     build_initial_agents,
     build_run_config,
+    modulate_outcome,
     session_to_response,
     update_snapshot_from_tick,
 )
 from src.self_model.simulator import SelfAwareTickResult
-from src.temporal.simulator import TickResult
+from src.temporal.tick_result import TickResult
 
 TickResult.model_rebuild(_types_namespace={"AffectSignal": AffectSignal})
 SelfAwareTickResult.model_rebuild(_types_namespace={"AffectSignal": AffectSignal})
@@ -65,6 +66,13 @@ class DemoSessionService:
             {"act_number": act_number, "agent_keys": list(session.agents)},
         )
         return session_to_response(session).model_dump()
+
+    def list_sessions(self) -> list[dict[str, object]]:
+        """Return all active demo sessions."""
+        return [
+            session_to_response(record.session).model_dump()
+            for record in self._store.list()
+        ]
 
     def get_session(self, session_id: str) -> dict[str, object]:
         """Return one frontend-facing session payload."""
@@ -114,7 +122,7 @@ class DemoSessionService:
             key: self._runs.create_run(build_run_config(persona))["run_id"]
             for key, persona in personas.items()
         }
-        record.session.reset_for_swap(personas)
+        record.session.reset_for_swap(build_initial_agents(personas))
         self._emit(session_id, "swap_completed", {"swapped": record.swapped})
         return DemoSwapResponse(
             session_id=session_id,
@@ -141,7 +149,17 @@ class DemoSessionService:
             "scenario_received",
             {"scenario_key": scenario.key, "description": scenario.description},
         )
+        personas = build_demo_personas(swapped=record.swapped)
         for key in ("luna", "marco"):
+            agent_outcome = (
+                modulate_outcome(
+                    scenario.forced_outcome,
+                    personas[key],
+                    scenario.values,
+                )
+                if scenario.forced_outcome is not None
+                else None
+            )
             tick = self._runs.step_run(
                 record.run_ids[key],
                 {
@@ -149,7 +167,7 @@ class DemoSessionService:
                     "description": scenario.description,
                     "values": scenario.values,
                 },
-                scenario.forced_outcome,
+                agent_outcome,
             )
             narrative = self._llm.build_narrative(session.agents[key], scenario, tick)
             update_snapshot_from_tick(

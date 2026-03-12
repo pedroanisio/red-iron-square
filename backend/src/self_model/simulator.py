@@ -14,11 +14,13 @@ from src.self_model.model import SelfModel
 from src.self_model.params import SelfModelParams
 from src.shared.logging import get_logger
 from src.shared.protocols import DecisionEngineProtocol
-from src.temporal.simulator import TemporalSimulator, TickResult
+from src.temporal.simulator import TemporalSimulator
 from src.temporal.state import AgentState
+from src.temporal.tick_result import TickResult
 
 if TYPE_CHECKING:
     from src.constructed_emotion.affect import ConstructedAffectiveEngine
+    from src.narrative.model import NarrativeGenerativeModel
     from src.precision.engine import PrecisionEngine
     from src.self_evidencing.modulator import SelfEvidencingModulator
 
@@ -62,6 +64,7 @@ class SelfAwareSimulator(TemporalSimulator):
         precision_engine: PrecisionEngine | None = None,
         constructed_affect: ConstructedAffectiveEngine | None = None,
         self_evidencing: SelfEvidencingModulator | None = None,
+        narrative_model: NarrativeGenerativeModel | None = None,
     ) -> None:
         super().__init__(
             personality,
@@ -73,6 +76,7 @@ class SelfAwareSimulator(TemporalSimulator):
             rng=rng,
             precision_engine=precision_engine,
             constructed_affect=constructed_affect,
+            narrative_model=narrative_model,
         )
         self.self_model = SelfModel(
             initial_self_model,

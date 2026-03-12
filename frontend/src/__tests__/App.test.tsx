@@ -46,6 +46,7 @@ describe("App", () => {
         statusLine: "Turn 1 complete.",
         pending: false,
         audioFallback: "Audio streaming not configured yet.",
+        errorMessage: null,
         socketStatus: "open",
       },
       runPreset: vi.fn(),

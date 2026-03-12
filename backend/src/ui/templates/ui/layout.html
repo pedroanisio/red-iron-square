@@ -138,6 +138,23 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
 
       .page { padding: 2rem; max-width: 1440px; margin: 0 auto; }
 
+      .stack-two {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 2rem;
+      }
+      .stack-compare {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+      .toolbar-form {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: end;
+      }
+
       /* Card */
       .card {
         background: var(--surface); border: 1px solid var(--border);
@@ -412,6 +429,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
         .grid-main > :last-child { order: -1; }
         .intro-grid { grid-template-columns: 1fr; }
         .intro-steps { grid-template-columns: 1fr; }
+        .stack-two, .stack-compare, .toolbar-form { grid-template-columns: 1fr; display: grid; }
       }
 
       /* Entrance animations */
@@ -434,6 +452,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       <div class="topbar-brand">
         <span class="mark" aria-hidden="true"></span>
         <a href="/" style="color:#fff;text-decoration:none;">Red Iron Square</a>
+        <a href="/demo" style="color:rgba(255,255,255,.7);text-decoration:none;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-left:12px;">Demo</a>
         <a href="/campaigns" style="color:rgba(255,255,255,.7);text-decoration:none;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-left:12px;">Campaigns</a>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
@@ -505,13 +524,23 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
           catch (err) { e.preventDefault(); ta.classList.add('field-error'); ta.setAttribute('aria-invalid', 'true'); if (msg) { msg.textContent = err.message; msg.classList.add('visible'); } }
         });
       });
-      /* Clear drafts on successful submit (no error toasts) */
+      /* Clear drafts only for the form that was just submitted successfully */
       if (!document.querySelector('.toast-error')) {
-        Object.keys(sessionStorage).forEach(function(k) { if (k.startsWith('draft-')) sessionStorage.removeItem(k); });
+        var submittedFormId = sessionStorage.getItem('submitted-form-id');
+        if (submittedFormId) {
+          var submittedForm = document.getElementById(submittedFormId);
+          if (submittedForm) {
+            submittedForm.querySelectorAll('textarea[data-validate-json]').forEach(function(ta) {
+              sessionStorage.removeItem('draft-' + ta.id);
+            });
+          }
+          sessionStorage.removeItem('submitted-form-id');
+        }
       }
       /* Loading state on form submit */
       document.querySelectorAll('form').forEach(function(form) {
         form.addEventListener('submit', function() {
+          if (form.id) sessionStorage.setItem('submitted-form-id', form.id);
           var btn = form.querySelector('.btn[type="submit"]');
           if (btn && !btn.disabled) btn.classList.add('loading');
         });
@@ -529,7 +558,13 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
           var form = document.activeElement && document.activeElement.closest('form');
-          if (form) { e.preventDefault(); form.requestSubmit(); }
+          if (form) {
+            var submitBtn = form.querySelector('.btn[type="submit"], button[type="submit"], input[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+              e.preventDefault();
+              form.requestSubmit();
+            }
+          }
         }
         if (e.key === 'Escape') {
           var overlay = document.getElementById('confirm-dialog');

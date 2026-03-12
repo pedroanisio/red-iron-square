@@ -24,13 +24,19 @@ def _client(test_name: str) -> TestClient:
 def test_demo_session_lifecycle_routes() -> None:
     client = _client("test_demo_session_lifecycle_routes")
 
+    initial = client.get("/demo/sessions")
     created = client.post("/demo/sessions", json={"act_number": 1})
     session_id = created.json()["data"]["session_id"]
+    listed = client.get("/demo/sessions")
     fetched = client.get(f"/demo/sessions/{session_id}")
     scripted = client.post(f"/demo/sessions/{session_id}/scripted/promotion")
     swapped = client.post(f"/demo/sessions/{session_id}/swap")
 
+    assert initial.status_code == fastapi.status.HTTP_200_OK
+    assert initial.json() == {"data": []}
     assert created.status_code == fastapi.status.HTTP_200_OK
+    assert listed.status_code == fastapi.status.HTTP_200_OK
+    assert listed.json()["data"][0]["session_id"] == session_id
     assert fetched.status_code == fastapi.status.HTTP_200_OK
     assert scripted.json()["data"]["turn_count"] == 1
     assert swapped.json()["data"]["swapped"] is True

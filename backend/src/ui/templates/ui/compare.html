@@ -10,7 +10,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
     Compare Runs
   </h2>
 
-  <form method="get" action="/compare" style="display:flex;gap:1rem;margin-bottom:2rem;align-items:end;">
+  <form method="get" action="/compare" class="toolbar-form">
     <div style="flex:1;">
       <label for="left" style="font-size:.75rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;">Left Run</label>
       <input type="text" id="left" name="left" value="{{ left_id }}"
@@ -25,7 +25,7 @@ or verifiable reference may be invalid, erroneous, or a hallucination.
   </form>
 
   {% if left_run or right_run %}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+  <div class="stack-compare">
     {# Left panel #}
     <div>
       {% if left_run %}
