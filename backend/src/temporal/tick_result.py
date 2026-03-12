@@ -30,3 +30,4 @@ class TickResult(BaseModel):
     precision: PrecisionState | None = None
     prediction_errors: PredictionErrors | None = None
     affect_signal: Any = None
+    efe_breakdown: dict[str, dict[str, float]] | None = None

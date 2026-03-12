@@ -52,8 +52,8 @@ class RunClientBuilder:
     @staticmethod
     def _resolve_sdk(config: dict[str, Any]) -> AgentSDK:
         """Resolve SDK factory from config's sdk_mode field."""
-        sdk_mode = config.get("sdk_mode", "precision")
-        factory = SDK_FACTORIES.get(sdk_mode, AgentSDK.with_precision)
+        sdk_mode = config.get("sdk_mode", "efe")
+        factory = SDK_FACTORIES.get(sdk_mode, AgentSDK.with_efe)
         return factory()
 
     @staticmethod

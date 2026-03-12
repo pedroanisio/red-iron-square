@@ -86,6 +86,8 @@ def tick_result_to_payload(
                 sig.constructed_emotions,
             ),
         }
+    if result.efe_breakdown is not None:
+        payload["efe_breakdown"] = result.efe_breakdown
     return payload
 
 

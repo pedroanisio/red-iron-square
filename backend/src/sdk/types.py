@@ -32,6 +32,7 @@ class TickRecord(BaseModel):
     precision: dict[str, Any] | None = None
     prediction_errors: dict[str, Any] | None = None
     affect_signal: dict[str, Any] | None = None
+    efe_breakdown: dict[str, dict[str, float]] | None = None
 
 
 class SimulationTrace(BaseModel):
