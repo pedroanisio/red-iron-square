@@ -1,5 +1,6 @@
 import type { DemoAgent, DemoEvent, DemoSession, DemoState } from "./types";
 
+/** Baseline UI state used before the first session is loaded. */
 export const initialDemoState: DemoState = {
   session: null,
   currentScenario: "Choose a scripted moment or ask the room for a new one.",
@@ -20,6 +21,14 @@ type DemoAction =
   | { type: "reconnectStarted" }
   | { type: "event"; event: DemoEvent };
 
+/**
+ * Pure reducer that advances {@link DemoState} in response to session,
+ * socket, and WebSocket event actions.
+ *
+ * @param state  - Current UI state.
+ * @param action - Discriminated union describing what happened.
+ * @returns The next UI state.
+ */
 export function demoReducer(state: DemoState, action: DemoAction): DemoState {
   switch (action.type) {
     case "sessionLoaded":

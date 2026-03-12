@@ -1,15 +1,21 @@
 import type { DemoEvent } from "./types";
 
+/** Handle returned by a socket factory, used to tear down the connection. */
 export type DemoSocket = {
   close: () => void;
 };
 
+/** Factory signature for creating a WebSocket connection to a demo session. */
 export type SocketFactory = (
   sessionId: string,
   onEvent: (event: DemoEvent) => void,
   onStatus: (status: "connecting" | "open" | "closed") => void,
 ) => DemoSocket;
 
+/**
+ * Default browser {@link SocketFactory} that opens a WebSocket to the demo
+ * stream endpoint and auto-reconnects with exponential back-off.
+ */
 export const createBrowserSocket: SocketFactory = (
   sessionId,
   onEvent,

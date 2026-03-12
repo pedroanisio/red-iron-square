@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 
+/** Live-region banner displaying the current status line, connection state, and any errors. */
 export function StatusBanner({
   line,
   socketStatus,

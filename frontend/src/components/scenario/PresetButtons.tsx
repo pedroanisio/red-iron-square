@@ -6,6 +6,7 @@ const presets = [
   { key: "three_months", label: "Three Months Later" },
 ] as const;
 
+/** Row of quick-pick buttons for the built-in scripted scenarios. */
 export function PresetButtons({
   pending,
   onSelect,

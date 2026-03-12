@@ -2,6 +2,7 @@ import type { FormEvent, ReactElement } from "react";
 import { useState } from "react";
 import { PresetButtons } from "./PresetButtons";
 
+/** Central control panel with preset buttons, a free-text scenario form, and a swap trigger. */
 export function ScenarioPanel({
   scenario,
   pending,
