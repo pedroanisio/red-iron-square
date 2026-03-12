@@ -2,14 +2,17 @@
 disclaimer: "No information in this document should be taken for granted. Any statement not backed by executable code, tests, or a verifiable reference may be incomplete, invalid, or hallucinated."
 last_assessed: "2026-03-11"
 status: "DEPRECATED — all phases complete"
-superseded_by: "personality-as-precision-landscape-1.0.md"
+superseded_by: "../personality-as-precision-landscape-1.0.md"
 ---
 
 # Backlog (DEPRECATED)
 
 > **This backlog is complete and deprecated.** All 11 phases (0–10) are done.
-> The active roadmap is now [Personality as Precision Landscape](personality-as-precision-landscape-1.0.md),
+> The active roadmap is now [Personality as Precision Landscape](../personality-as-precision-landscape-1.0.md),
 > which defines Phases A, B, C1, and C2 for the hierarchical active inference migration.
+>
+> **Note:** Statistics below (457 tests, 91% coverage, LOC counts) are frozen
+> at the time of deprecation and no longer reflect the current codebase.
 
 This backlog turns the current architecture direction into an execution sequence for the repository as it exists today:
 
@@ -463,4 +466,4 @@ Tests: `test_orchestrator_store.py` (4), `test_orchestrator_agents.py` (6), `tes
 
 ## Next
 
-See [Personality as Precision Landscape](personality-as-precision-landscape-1.0.md) for the active roadmap.
+See [Personality as Precision Landscape](../personality-as-precision-landscape-1.0.md) for the active roadmap.

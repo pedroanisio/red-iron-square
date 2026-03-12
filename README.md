@@ -5,9 +5,9 @@ disclaimer: "No information in this document should be taken for granted. Any st
 # Red Iron Square
 
 Red Iron Square currently has three user-facing surfaces:
-- the Python SDK and FastAPI backend in [backend](/home/admin/spikes/red-iron-square/backend)
-- the Flask operator UI served from the backend in [backend/src/ui](/home/admin/spikes/red-iron-square/backend/src/ui)
-- the React-based Two Minds demo frontend in [frontend](/home/admin/spikes/red-iron-square/frontend)
+- the Python SDK and FastAPI backend in [backend](/home/admin/codebases/red-iron-square/backend)
+- the Flask operator UI served from the backend in [backend/src/ui](/home/admin/codebases/red-iron-square/backend/src/ui)
+- the React-based Two Minds demo frontend in [frontend](/home/admin/codebases/red-iron-square/frontend)
 
 ## Quick Start
 
@@ -39,6 +39,6 @@ The Vite dev server proxies `/demo` traffic to `http://127.0.0.1:8000`. For brow
 
 ## Repo Notes
 
-- Root [package.json](/home/admin/spikes/red-iron-square/package.json) only holds Playwright tooling; the real frontend scripts live in [frontend/package.json](/home/admin/spikes/red-iron-square/frontend/package.json).
-- The main backend reference is [backend/README.md](/home/admin/spikes/red-iron-square/backend/README.md).
-- The family-facing demo runbook is [docs/two-minds-demo-runbook.md](/home/admin/spikes/red-iron-square/docs/two-minds-demo-runbook.md).
+- Root [package.json](/home/admin/codebases/red-iron-square/package.json) only holds Playwright tooling; the real frontend scripts live in [frontend/package.json](/home/admin/codebases/red-iron-square/frontend/package.json).
+- The main backend reference is [backend/README.md](/home/admin/codebases/red-iron-square/backend/README.md).
+- The family-facing demo runbook is [docs/two-minds-demo-runbook.md](/home/admin/codebases/red-iron-square/docs/two-minds-demo-runbook.md).

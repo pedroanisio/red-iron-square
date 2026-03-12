@@ -5,7 +5,7 @@ disclaimer: >
   or verifiable reference may be invalid, erroneous, or a hallucination.
 title: "Two Minds Demo Frontend Implementation Plan"
 date: "2026-03-11"
-status: "Draft"
+status: "COMPLETED — frontend/ fully implemented"
 ---
 
 # Two Minds Demo Frontend Implementation Plan
@@ -14,7 +14,7 @@ status: "Draft"
 
 **Goal:** Build a second frontend for the family-facing Two Minds demo: a React + TypeScript app in `frontend/` that talks to a demo-specific FastAPI/WebSocket surface without replacing the existing Flask UI.
 
-**Architecture:** Keep the current backend simulation stack as the source of truth. Add a thin demo orchestration layer in FastAPI that manages Luna/Marco session state, scenario enrichment, narrative/audio events, and swap/reset behavior. Build a separate Vite-based React app in `frontend/` on Node `24` from [`frontend/.nvmrc`](/home/admin/spikes/red-iron-square/frontend/.nvmrc) and drive it over HTTP + WebSocket.
+**Architecture:** Keep the current backend simulation stack as the source of truth. Add a thin demo orchestration layer in FastAPI that manages Luna/Marco session state, scenario enrichment, narrative/audio events, and swap/reset behavior. Build a separate Vite-based React app in `frontend/` on Node `24` from [`frontend/.nvmrc`](/home/admin/codebases/red-iron-square/frontend/.nvmrc) and drive it over HTTP + WebSocket.
 
 **Tech Stack:** Node 24, npm, Vite, React, TypeScript strict, Vitest, Testing Library, Playwright, FastAPI WebSockets, existing `src/llm`, existing simulator/orchestrator modules.
 
@@ -57,7 +57,7 @@ Expected: FAIL because the React app and test runner do not exist yet.
 
 **Step 3: Scaffold the Vite app with strict TypeScript**
 
-Use Node `24` from [`frontend/.nvmrc`](/home/admin/spikes/red-iron-square/frontend/.nvmrc), add React/Vitest/Testing Library scripts, and create a minimal shell app with strict compiler settings.
+Use Node `24` from [`frontend/.nvmrc`](/home/admin/codebases/red-iron-square/frontend/.nvmrc), add React/Vitest/Testing Library scripts, and create a minimal shell app with strict compiler settings.
 
 **Step 4: Run test to verify it passes**
 

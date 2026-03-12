@@ -8,7 +8,7 @@ disclaimer: >
 title: "Personality Middleware for Open-Ended Agents: Bridging the Simulation Engine to Real-World Agent Behavior"
 version: "1.0"
 date: "2026-03-12"
-status: "Architecture proposal with implementation specification; extends personality-as-precision-landscape-1.0"
+status: "Architecture proposal — NOT YET IMPLEMENTED; extends personality-as-precision-landscape-1.0"
 depends_on: "personality-as-precision-landscape-1.0.md"
 ---
 

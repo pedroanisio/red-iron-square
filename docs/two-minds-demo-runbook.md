@@ -8,7 +8,7 @@ status: "Current as of 2026-03-11"
 
 ## Current State
 
-The shipped demo is a separate React frontend in [frontend](/home/admin/spikes/red-iron-square/frontend) backed by the FastAPI demo routes in [backend/src/demo](/home/admin/spikes/red-iron-square/backend/src/demo).
+The shipped demo is a separate React frontend in [frontend](/home/admin/codebases/red-iron-square/frontend) backed by the FastAPI demo routes in [backend/src/demo](/home/admin/codebases/red-iron-square/backend/src/demo).
 
 What works now:
 - session bootstrap for Luna and Marco
@@ -29,7 +29,7 @@ What does not ship yet:
 Start the backend API:
 
 ```bash
-cd /home/admin/spikes/red-iron-square/backend
+cd /home/admin/codebases/red-iron-square/backend
 uv sync --extra api --extra ui
 uv run uvicorn src.api.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
@@ -37,7 +37,7 @@ uv run uvicorn src.api.app:create_app --factory --host 127.0.0.1 --port 8000
 Start the frontend:
 
 ```bash
-cd /home/admin/spikes/red-iron-square/frontend
+cd /home/admin/codebases/red-iron-square/frontend
 npm run dev
 ```
 
@@ -48,7 +48,7 @@ In local development the frontend proxies `/demo` traffic to `http://127.0.0.1:8
 Frontend:
 
 ```bash
-cd /home/admin/spikes/red-iron-square/frontend
+cd /home/admin/codebases/red-iron-square/frontend
 npm test -- --runInBand
 npm run build
 ```
@@ -56,7 +56,7 @@ npm run build
 Backend:
 
 ```bash
-cd /home/admin/spikes/red-iron-square/backend
+cd /home/admin/codebases/red-iron-square/backend
 uv run pytest -q
 ```
 
@@ -82,7 +82,7 @@ Optional ElevenLabs voice synthesis (once audio wiring is complete):
 export ELEVENLABS_API_KEY=...
 ```
 
-See [backend/.env.example](/home/admin/spikes/red-iron-square/backend/.env.example) for all supported environment variables.
+See [backend/.env.example](/home/admin/codebases/red-iron-square/backend/.env.example) for all supported environment variables.
 
 Without provider credentials, the demo still runs using built-in fallback behavior.
 

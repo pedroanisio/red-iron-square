@@ -4,7 +4,7 @@ disclaimer: "No information in this document should be taken for granted. Any st
 
 # Red Iron Square Backend
 
-`red-iron-square` is a Python simulation library for personality-driven agents. The current public surface is the SDK under [src/sdk](/home/admin/spikes/red-iron-square/backend/src/sdk).
+`red-iron-square` is a Python simulation library for personality-driven agents. The current public surface is the SDK under [src/sdk](/home/admin/codebases/red-iron-square/backend/src/sdk).
 
 ## Current State
 
@@ -16,7 +16,7 @@ The backend now ships with:
 - orchestrator endpoints under `src.orchestrator`
 - a Two Minds demo transport under `src.demo`
 - a Flask + Jinja2 UI under `src.ui`
-- runnable JSON examples under [backend/examples](/home/admin/spikes/red-iron-square/backend/examples)
+- runnable JSON examples under [backend/examples](/home/admin/codebases/red-iron-square/backend/examples)
 
 ## Public API Boundary
 
@@ -44,7 +44,7 @@ The internal modules remain the domain implementation. They are available for ad
 
 ## Install And Run
 
-From [backend](/home/admin/spikes/red-iron-square/backend):
+From [backend](/home/admin/codebases/red-iron-square/backend):
 
 ```bash
 uv sync
@@ -79,7 +79,7 @@ For ElevenLabs voice synthesis in the Two Minds demo:
 export ELEVENLABS_API_KEY=...
 ```
 
-See [backend/.env.example](/home/admin/spikes/red-iron-square/backend/.env.example) for all supported environment variables.
+See [backend/.env.example](/home/admin/codebases/red-iron-square/backend/.env.example) for all supported environment variables.
 
 To run the Flask UI:
 
@@ -190,11 +190,11 @@ uv run red-iron-square simulate \
   --self-model @examples/self_model.json
 ```
 
-The example payloads above are included in [backend/examples](/home/admin/spikes/red-iron-square/backend/examples).
+The example payloads above are included in [backend/examples](/home/admin/codebases/red-iron-square/backend/examples).
 
 ## HTTP API
 
-The FastAPI transport lives under [backend/src/api](/home/admin/spikes/red-iron-square/backend/src/api). It is intentionally thin and delegates all business logic to `AgentSDK`.
+The FastAPI transport lives under [backend/src/api](/home/admin/codebases/red-iron-square/backend/src/api). It is intentionally thin and delegates all business logic to `AgentSDK`.
 
 Available endpoints:
 - `GET /health`
@@ -287,10 +287,10 @@ curl -X POST http://127.0.0.1:8000/campaigns \
 ## Campaign API
 
 Campaign orchestration lives in
-[backend/src/api/campaign_router.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_router.py),
-[backend/src/api/campaign_service.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_service.py),
+[backend/src/api/campaign_router.py](/home/admin/codebases/red-iron-square/backend/src/api/campaign_router.py),
+[backend/src/api/campaign_service.py](/home/admin/codebases/red-iron-square/backend/src/api/campaign_service.py),
 and
-[backend/src/api/campaign_store.py](/home/admin/spikes/red-iron-square/backend/src/api/campaign_store.py).
+[backend/src/api/campaign_store.py](/home/admin/codebases/red-iron-square/backend/src/api/campaign_store.py).
 
 It currently provides:
 - campaign creation plus automatic primary run creation
@@ -307,7 +307,7 @@ Current limitations:
 ## Orchestrator API
 
 The orchestrator lives under
-[backend/src/orchestrator](/home/admin/spikes/red-iron-square/backend/src/orchestrator).
+[backend/src/orchestrator](/home/admin/codebases/red-iron-square/backend/src/orchestrator).
 
 It currently provides:
 - one-shot orchestration cycles via `POST /runs/{run_id}/orchestrate`
@@ -319,7 +319,7 @@ The Flask UI exposes these controls on the main run dashboard.
 
 ## Two Minds Demo API
 
-The demo transport lives under [backend/src/demo](/home/admin/spikes/red-iron-square/backend/src/demo).
+The demo transport lives under [backend/src/demo](/home/admin/codebases/red-iron-square/backend/src/demo).
 
 It currently provides:
 - creation of a session with Luna and Marco
@@ -336,7 +336,7 @@ Current limitations:
 
 ## Flask UI
 
-The Flask UI lives under [backend/src/ui](/home/admin/spikes/red-iron-square/backend/src/ui). It is a thin client over the FastAPI service and does not embed simulator logic.
+The Flask UI lives under [backend/src/ui](/home/admin/codebases/red-iron-square/backend/src/ui). It is a thin client over the FastAPI service and does not embed simulator logic.
 
 It provides:
 - run creation from JSON config
