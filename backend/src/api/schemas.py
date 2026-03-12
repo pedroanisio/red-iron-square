@@ -44,6 +44,29 @@ class SimulationRequest(BaseModel):
     self_model: dict[str, float] | None = None
 
 
+class ProposalInput(BaseModel):
+    """SDK-friendly action proposal input payload."""
+
+    kind: str
+    name: str
+    description: str = ""
+    modifiers: dict[str, float] | None = None
+    tool_name: str | None = None
+    tool_args: dict[str, Any] | None = None
+    intent: str | None = None
+    method: str | None = None
+    url: str | None = None
+
+
+class OpenEndedDecisionRequest(BaseModel):
+    """Request body for open-ended decisions with action proposals."""
+
+    personality: dict[str, float]
+    scenario: ScenarioInput
+    proposals: list[ProposalInput]
+    temperature: float = 1.0
+
+
 class ApiEnvelope(BaseModel):
     """Uniform API response wrapper."""
 

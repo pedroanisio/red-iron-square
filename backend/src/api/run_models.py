@@ -36,6 +36,7 @@ class TickEventRecord:
     scenario: dict[str, Any]
     requested_outcome: float | None
     result: dict[str, Any]
+    proposals: list[dict[str, Any]] = field(default_factory=list)
     created_at: str = field(default_factory=utc_now)
 
 

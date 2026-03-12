@@ -116,6 +116,9 @@ class RunStore:
 
     def append_tick(self, run_id: str, event: TickEventRecord) -> None:
         """Persist one tick event."""
+        result_payload = dict(event.result)
+        if event.proposals:
+            result_payload["proposals"] = event.proposals
         with self._lock:
             self._conn.execute(
                 """
@@ -130,7 +133,7 @@ class RunStore:
                     event.tick,
                     json.dumps(event.scenario),
                     event.requested_outcome,
-                    json.dumps(event.result),
+                    json.dumps(result_payload),
                     event.created_at,
                 ),
             )
@@ -149,16 +152,21 @@ class RunStore:
                 """,
                 (run_id,),
             ).fetchall()
-        return [
-            TickEventRecord(
-                tick=row["tick"],
-                scenario=json.loads(row["scenario_json"]),
-                requested_outcome=row["requested_outcome"],
-                result=json.loads(row["result_json"]),
-                created_at=row["created_at"],
+        records = []
+        for row in rows:
+            result = json.loads(row["result_json"])
+            proposals = result.pop("proposals", [])
+            records.append(
+                TickEventRecord(
+                    tick=row["tick"],
+                    scenario=json.loads(row["scenario_json"]),
+                    requested_outcome=row["requested_outcome"],
+                    result=result,
+                    proposals=proposals,
+                    created_at=row["created_at"],
+                )
             )
-            for row in rows
-        ]
+        return records
 
     def create_phase(self, run_id: str, phase: PhaseRecord) -> None:
         """Persist one phase annotation."""
