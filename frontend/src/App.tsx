@@ -5,6 +5,7 @@ import { ScenarioPanel } from "./components/scenario/ScenarioPanel";
 import { StatusBanner } from "./components/system/StatusBanner";
 import { useDemoSession } from "./demo/useDemoSession";
 
+/** Root component that wires the Two Minds demo session into the stage layout. */
 function App(): ReactElement {
   const { state, runPreset, submitScenario, swapPersonalities } = useDemoSession();
   const luna = state.session?.agents.find((agent) => agent.key === "luna");

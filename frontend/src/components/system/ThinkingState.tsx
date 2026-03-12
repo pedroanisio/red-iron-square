@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 
+/** Animated indicator shown while an agent is actively speaking. */
 export function ThinkingState({
   visible,
   label,

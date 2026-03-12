@@ -3,6 +3,7 @@ import { StateBar } from "./StateBar";
 import { ThinkingState } from "../system/ThinkingState";
 import type { DemoAgent } from "../../demo/types";
 
+/** Card displaying an agent's identity, emotional state bars, and latest voice line. */
 export function AgentCard({ agent }: { agent: DemoAgent }): ReactElement {
   const latestLine = agent.transcript.at(-1) ?? "Waiting for the moment to land.";
   return (

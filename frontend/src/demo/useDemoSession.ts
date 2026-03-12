@@ -18,6 +18,13 @@ type Options = {
 
 let bootstrapSessionPromise: Promise<ReturnType<DemoApiClient["createSession"]> extends Promise<infer T> ? T : never> | null = null;
 
+/**
+ * React hook that bootstraps a demo session, manages the WebSocket
+ * lifecycle, and exposes action dispatchers for scenario playback.
+ *
+ * @param options - Optional overrides for the API client and socket factory.
+ * @returns Current UI state and callbacks for preset, custom, and swap actions.
+ */
 export function useDemoSession(options: Options = {}) {
   const api = useMemo(() => options.api ?? createDemoApiClient(), [options.api]);
   const socketFactory = options.socketFactory ?? createBrowserSocket;

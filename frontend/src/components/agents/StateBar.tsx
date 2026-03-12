@@ -6,6 +6,7 @@ type StateBarProps = {
   tone: "mood" | "energy" | "calm";
 };
 
+/** Horizontal progress bar that visualises a single agent dimension (mood, energy, or calm). */
 export function StateBar({ label, value, tone }: StateBarProps): ReactElement {
   const percent = `${Math.round(((value + (tone === "mood" ? 1 : 0)) / (tone === "mood" ? 2 : 1)) * 100)}%`;
   const min = tone === "mood" ? -1 : 0;

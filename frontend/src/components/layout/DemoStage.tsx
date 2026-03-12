@@ -7,6 +7,7 @@ type DemoStageProps = {
   status: ReactNode;
 };
 
+/** Three-column stage layout with a header marquee and status slot. */
 export function DemoStage({
   left,
   center,
