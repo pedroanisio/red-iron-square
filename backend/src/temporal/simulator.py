@@ -185,6 +185,14 @@ class TemporalSimulator:
         errors = self._precision_engine.compute_errors(state, self.personality)
         return precision, errors
 
+    def _modulate_probs(self, probs: np.ndarray) -> np.ndarray:
+        """Apply per-action probability modulation (hook for subclasses).
+
+        Default implementation returns probabilities unchanged. Overridden by
+        SelfAwareSimulator to apply L2->L1 self-evidencing precision weights.
+        """
+        return probs
+
     @property
     def _uses_efe(self) -> bool:
         """Check if the engine supports EFE-based decisions."""
@@ -216,7 +224,7 @@ class TemporalSimulator:
 
         temperature = self._compute_effective_temperature(pre_precision)
 
-        chosen_action, probs = self.engine.decide(
+        _, base_probs = self.engine.decide(
             self.personality,
             scenario,
             self.actions,
@@ -224,6 +232,9 @@ class TemporalSimulator:
             rng=self.rng,
             activations_override=activations,
         )
+        probs = self._modulate_probs(base_probs)
+        chosen_idx = self.rng.choice(len(self.actions), p=probs)
+        chosen_action = self.actions[chosen_idx]
 
         resolved_outcome = resolve_outcome(
             self.engine,

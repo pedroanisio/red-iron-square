@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from src.personality.vectors import Action, PersonalityVector, Scenario
-from src.precision.state import PrecisionState
 from src.self_model.emotions import SelfEmotionDetector, SelfEmotionReading
 from src.self_model.model import SelfModel
 from src.self_model.params import SelfModelParams
@@ -89,15 +88,23 @@ class SelfAwareSimulator(TemporalSimulator):
         )
         self.self_emotion_detector = SelfEmotionDetector(params=self_model_params)
         self._self_evidencing = self_evidencing
-        self._se_temp_scale: float = 1.0
+        self._se_weights: np.ndarray | None = None
 
-    def _compute_effective_temperature(
-        self,
-        precision: PrecisionState | None = None,
-    ) -> float:
-        """Override to apply self-evidencing temperature scaling."""
-        base_temp = super()._compute_effective_temperature(precision)
-        return base_temp * self._se_temp_scale
+    def _modulate_probs(self, probs: np.ndarray) -> np.ndarray:
+        """Apply L2->L1 self-evidencing precision weights to action probs.
+
+        Multiplies base probabilities by per-action SE weights, then
+        re-normalizes to a valid distribution. This is the §5 feedback
+        loop: self-model predictions modulate policy selection.
+        """
+        if self._se_weights is None:
+            return probs
+        modulated = probs * self._se_weights
+        total = float(modulated.sum())
+        if total < 1e-10:
+            return probs
+        result: np.ndarray = modulated / total
+        return result
 
     def tick(
         self,
@@ -115,9 +122,9 @@ class SelfAwareSimulator(TemporalSimulator):
             state=self.state,
         )
 
-        self._apply_self_evidencing_scale(predicted_probs)
+        self._prepare_self_evidencing_weights(predicted_probs, scenario)
         base: TickResult = super().tick(scenario, outcome)
-        self._se_temp_scale = 1.0
+        self._se_weights = None
 
         modifier_list = [a.modifiers for a in self.actions]
         sm_metrics = self.self_model.update(base.probabilities, modifier_list)
@@ -169,23 +176,23 @@ class SelfAwareSimulator(TemporalSimulator):
             self_evidencing_weights=se_weights,
         )
 
-    def _apply_self_evidencing_scale(
+    def _prepare_self_evidencing_weights(
         self,
         predicted_probs: np.ndarray,
+        scenario: Scenario,
     ) -> None:
-        """Compute temperature scale from self-evidencing concentration.
+        """Compute per-action SE precision weights for the upcoming decision.
 
-        Higher beta (high-T) -> more concentrated predicted probs
-        -> lower scale -> lower effective temperature -> narrower distribution.
+        These weights are applied in ``_modulate_probs`` during the parent
+        ``tick()``, implementing the L2->L1 feedback from §5.
         """
-        if self._self_evidencing is None:
+        if self._self_evidencing is None or self._precision_engine is None:
             return
-        concentration = float(np.max(predicted_probs))
-        n_actions = len(self.actions)
-        excess = concentration - 1.0 / n_actions
-        self._se_temp_scale = max(
-            0.3,
-            1.0 / (1.0 + self._self_evidencing.beta * excess),
+        precision = self._precision_engine.compute(
+            self.personality, self.state, scenario,
+        )
+        self._se_weights = self._self_evidencing.compute_precision_weights(
+            predicted_probs, precision.level_1,
         )
 
     def _compute_self_evidencing(
